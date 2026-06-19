@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -160,15 +161,16 @@
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
     width: 100%; border-collapse: collapse; font-size: 13px;
-    table-layout: fixed; min-width: 780px;
+    table-layout: fixed; min-width: 900px;
   }
-  col.col-ref    { width: 130px; }
+  col.col-date   { width: 110px; }
+  col.col-ref    { width: 120px; }
   col.col-name   { width: auto;  }
-  col.col-qty    { width: 70px;  }
-  col.col-ubp    { width: 140px; }
-  col.col-adj    { width: 130px; }
-  col.col-usp    { width: 140px; }
-  col.col-total  { width: 140px; }
+  col.col-qty    { width: 60px;  }
+  col.col-ubp    { width: 120px; }
+  col.col-adj    { width: 110px; }
+  col.col-usp    { width: 120px; }
+  col.col-total  { width: 120px; }
   col.col-action { width: 44px;  }
 
   thead th {
@@ -192,6 +194,7 @@
   td.td-num  { padding: 4px 8px; text-align: right; }
   td.td-calc { padding: 4px 12px; text-align: right; }
   td.td-act  { padding: 4px 4px; text-align: center; }
+  .td-date   { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
   .cell-input {
     border: 1.5px solid transparent; border-radius: 4px;
@@ -304,6 +307,7 @@
       text-align: center; padding: 32px 16px;
       color: var(--muted); font-size: 13px;
     }
+    .m-date { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
   }
 
   /* ── Modal ── */
@@ -311,7 +315,7 @@
   .overlay.open { display: flex; }
   .modal {
     background: var(--card-bg); border-radius: 12px;
-    width: min(500px, 100%); max-height: 85vh; overflow-y: auto;
+    width: min(550px, 100%); max-height: 85vh; overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0,0,0,.25);
     animation: slideUp .2s ease;
     transition: background .3s;
@@ -327,7 +331,9 @@
   .quote-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
   .quote-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--row-even); border-radius: 6px; border: 1px solid var(--border); }
   .quote-item:hover { background: var(--row-hover); }
+  .quote-info { display: flex; flex-direction: column; gap: 2px; }
   .quote-name { font-size: 13px; font-weight: 600; }
+  .quote-date { font-size: 10px; color: var(--muted); }
   .quote-actions { display: flex; gap: 6px; }
   .no-quotes { text-align: center; padding: 20px 0; color: var(--muted); font-size: 13px; }
 
@@ -449,12 +455,13 @@
     <div class="table-wrap">
       <table id="quoteTable">
         <colgroup>
-          <col class="col-ref" /><col class="col-name" /><col class="col-qty" />
+          <col class="col-date" /><col class="col-ref" /><col class="col-name" /><col class="col-qty" />
           <col class="col-ubp" /><col class="col-adj" /><col class="col-usp" />
           <col class="col-total" /><col class="col-action" />
         </colgroup>
         <thead>
           <tr>
+            <th class="th-left">Date Added</th>
             <th class="th-left">Part Reference</th>
             <th class="th-left">Part Name</th>
             <th class="th-right">Qty</th>
@@ -565,6 +572,10 @@ function toggleTheme() {
 function fmt(n, d = 2) {
   return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
+function getNow() {
+  const d = new Date();
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 function onMultiplierTypeChange(recalc = true) {
   const type = document.getElementById('multiplierType').value;
   const customGroup = document.getElementById('customMultiplierGroup');
@@ -644,7 +655,7 @@ function recalcAll() {
 
 /* ── Row management ── */
 function addRow() {
-  const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0 };
+  const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0, date: getNow() };
   rows.push(row);
   appendDesktopRow(row);
   appendMobileCard(row);
@@ -704,6 +715,7 @@ function appendDesktopRow(row) {
   const tr = document.createElement('tr');
   tr.dataset.id = row.id;
   tr.innerHTML = `
+    <td class="td-date">${row.date || 'N/A'}</td>
     <td class="td-text">
       <input class="cell-input" type="text" data-field="ref" value="${esc(row.ref)}"
         placeholder="e.g. 12345678" oninput="updateRowField('${row.id}','ref',this.value)" />
@@ -738,6 +750,7 @@ function appendMobileCard(row) {
   card.className = 'm-row';
   card.dataset.id = row.id;
   card.innerHTML = `
+    <div class="m-date">${row.date || 'N/A'}</div>
     <div class="m-row-top">
       <div class="m-row-inputs">
         <div class="m-field">
@@ -794,7 +807,7 @@ function checkEmpty() {
   const mobileRows = document.getElementById('mobileRows');
   if (!rows.length) {
     const msg = 'No items yet — click <strong>+ Add Item</strong> to begin.';
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">${msg}</td></tr>`;
     mobileRows.innerHTML = `<div class="m-empty">${msg}</div>`;
   }
 }
@@ -832,7 +845,7 @@ function filterRows() {
     const tbody = document.getElementById('tableBody');
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = `<td colspan="8">${msg}</td>`;
+    tr.innerHTML = `<td colspan="9">${msg}</td>`;
     tbody.appendChild(tr);
     const mobileRows = document.getElementById('mobileRows');
     const div = document.createElement('div');
@@ -860,6 +873,7 @@ function newQuote() {
     document.getElementById('multiplierCustom').value = '2.1';
     onMultiplierTypeChange(false);
     document.getElementById('searchInput').value = '';
+    document.getElementById('saveNameInput').value = '';
     renderAll();
     recalcAll();
     showLoadedBadge();
@@ -910,7 +924,8 @@ function saveQuote() {
     multiplierType:   document.getElementById('multiplierType').value,
     multiplierCustom: document.getElementById('multiplierCustom').value,
     adjuster, rate,
-    rows: JSON.parse(JSON.stringify(rows))
+    rows: JSON.parse(JSON.stringify(rows)),
+    lastModified: getNow()
   };
   saveQuotes(); loadedName = name; showLoadedBadge(); autosave();
   document.getElementById('saveNameInput').value = '';
@@ -939,6 +954,7 @@ function loadQuote(name) {
   document.getElementById('adjuster').value = q.adjuster;
   document.getElementById('rate').value      = q.rate;
   rows = JSON.parse(JSON.stringify(q.rows)); loadedName = name;
+  document.getElementById('saveNameInput').value = name;
   renderAll(); recalcAll(); showLoadedBadge(); closeModal();
   showToast('Loaded "' + name + '"');
 }
@@ -963,14 +979,28 @@ function renderQuoteList() {
     el.innerHTML = `<div class="no-quotes">${q ? 'No matches found.' : 'No saved quotations yet.'}</div>`;
     return;
   }
-  el.innerHTML = keys.map(name => `
-    <div class="quote-item">
-      <span class="quote-name">${esc(name)}</span>
-      <div class="quote-actions">
-        <button class="btn btn-primary btn-sm" onclick="loadQuote('${esc(name)}')">Load</button>
-        <button class="btn btn-danger btn-sm"  onclick="deleteQuote('${esc(name)}')">Delete</button>
-      </div>
-    </div>`).join('');
+  
+  // Sort by last modified date (most recent first)
+  keys.sort((a, b) => {
+    const da = new Date(savedQuotes[a].lastModified || 0);
+    const db = new Date(savedQuotes[b].lastModified || 0);
+    return db - da;
+  });
+
+  el.innerHTML = keys.map(name => {
+    const info = savedQuotes[name];
+    return `
+      <div class="quote-item">
+        <div class="quote-info">
+          <span class="quote-name">${esc(name)}</span>
+          <span class="quote-date">${info.lastModified || 'Unknown date'}</span>
+        </div>
+        <div class="quote-actions">
+          <button class="btn btn-primary btn-sm" onclick="loadQuote('${esc(name)}')">Load</button>
+          <button class="btn btn-danger btn-sm"  onclick="deleteQuote('${esc(name)}')">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 /* ── Print / Export ── */
@@ -982,13 +1012,14 @@ function exportCSV() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
   
   const { multiplier, adjRate } = getParams();
-  const headers = ['Part Reference', 'Part Name', 'Qty', 'Unit Buy Price (EUR)', 'Adj. Price (EUR)', 'Unit Sell Price (MUR)', 'Total (MUR)'];
+  const headers = ['Date Added', 'Part Reference', 'Part Name', 'Qty', 'Unit Buy Price (EUR)', 'Adj. Price (EUR)', 'Unit Sell Price (MUR)', 'Total (MUR)'];
   
   const csvRows = [headers.join(',')];
   
   rows.forEach(row => {
     const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
     const line = [
+      `"${(row.date || '').replace(/"/g, '""')}"`,
       `"${row.ref.replace(/"/g, '""')}"`,
       `"${row.name.replace(/"/g, '""')}"`,
       row.qty,
