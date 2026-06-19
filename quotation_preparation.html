@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quotation Preparation — MULTIVAC Spare Parts</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue:   #2563eb;
+    --navy:   #1e3a5f;
+    --light:  #f1f5f9;
+    --border: #e2e8f0;
+    --green:  #16a34a;
+    --red:    #dc2626;
+    --text:   #1e293b;
+    --muted:  #64748b;
+    --white:  #ffffff;
+    --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--light);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--navy);
+    color: var(--white);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-eyebrow { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #93c5fd; margin-bottom: 2px; }
+  header h1 { font-size: 18px; font-weight: 700; }
+  .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 8px 14px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s, transform .1s; white-space: nowrap;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--blue);  color: var(--white); }
+  .btn-success { background: var(--green); color: var(--white); }
+  .btn-danger  { background: var(--red);   color: var(--white); }
+  .btn-outline { background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,.45); }
+  .btn-outline:hover { background: rgba(255,255,255,.12); opacity: 1; }
+  .btn:hover   { opacity: .88; }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+
+  /* ── Layout ── */
+  main {
+    max-width: 1240px; margin: 0 auto;
+    padding: 20px 16px; display: flex; flex-direction: column; gap: 16px;
+  }
+
+  /* ── Card ── */
+  .card { background: var(--white); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .card-header { padding: 12px 20px; border-bottom: 1px solid var(--border); background: #f8fafc; }
+  .card-label  { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+  /* ── Pricing Grid ── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px; padding: 18px 20px; align-items: end;
+  }
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-label { font-size: 11px; font-weight: 500; color: var(--muted); }
+  .field-input {
+    padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+    font-size: 14px; color: var(--text); outline: none; width: 100%;
+    transition: border-color .15s; font-family: inherit; background: var(--white);
+  }
+  .field-input:focus { border-color: var(--blue); }
+  select.field-input { cursor: pointer; }
+
+  .adj-rate-box {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    border-radius: 8px; padding: 13px 16px; color: var(--white);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .adj-rate-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #93c5fd; }
+  .adj-rate-value { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+  .adj-rate-unit  { font-size: 12px; font-weight: 400; }
+
+  /* ── Table Toolbar ── */
+  .table-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .toolbar-left  { display: flex; flex-direction: column; gap: 3px; }
+  .toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .section-title { font-size: 15px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; }
+  .count-badge   { background: #e0e7ff; color: #3730a3; border-radius: 20px; padding: 1px 9px; font-size: 12px; font-weight: 700; }
+  .loaded-badge  { font-size: 11px; color: var(--blue); font-weight: 600; letter-spacing: .02em; }
+  .search-input  {
+    padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+    font-size: 13px; color: var(--text); outline: none;
+    transition: border-color .15s; font-family: inherit; width: 100%;
+  }
+  .search-input:focus { border-color: var(--blue); }
+
+  /* ════════════════════════════════════════════
+     DESKTOP TABLE (≥ 700px)
+  ════════════════════════════════════════════ */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    table-layout: fixed; min-width: 780px;
+  }
+  col.col-ref    { width: 130px; }
+  col.col-name   { width: auto;  }
+  col.col-qty    { width: 70px;  }
+  col.col-ubp    { width: 140px; }
+  col.col-adj    { width: 130px; }
+  col.col-usp    { width: 140px; }
+  col.col-total  { width: 140px; }
+  col.col-action { width: 44px;  }
+
+  thead th {
+    background: #f1f5f9; padding: 9px 12px;
+    color: var(--muted); font-weight: 600; font-size: 10px;
+    text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .th-left   { text-align: left;   }
+  .th-right  { text-align: right;  }
+  .th-center { text-align: center; }
+
+  tbody tr { transition: background .1s; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover           { background: #eef2ff; }
+
+  td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; overflow: hidden; }
+  td.td-text { padding: 4px 5px; }
+  td.td-num  { padding: 4px 8px; text-align: right; }
+  td.td-calc { padding: 4px 12px; text-align: right; }
+  td.td-act  { padding: 4px 4px; text-align: center; }
+
+  .cell-input {
+    border: 1.5px solid transparent; border-radius: 4px;
+    padding: 5px 6px; font-size: 13px; color: var(--text);
+    background: transparent; width: 100%; outline: none;
+    transition: border-color .15s, background .15s;
+    font-family: inherit; display: block;
+  }
+  .cell-input:hover, .cell-input:focus { border-color: var(--blue); background: #fff; }
+  input.cell-input[type="number"] { text-align: right; -moz-appearance: textfield; }
+  input.cell-input[type="number"]::-webkit-outer-spin-button,
+  input.cell-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .calc-cell  { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .total-cell { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .delete-btn {
+    background: none; border: none; cursor: pointer; font-size: 15px;
+    opacity: .4; padding: 4px 5px; border-radius: 4px;
+    transition: opacity .15s, background .15s;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .delete-btn:hover { opacity: 1; background: #fee2e2; }
+
+  .empty-row td {
+    text-align: center; padding: 32px 0;
+    color: #94a3b8; font-size: 13px; white-space: normal;
+  }
+
+  /* ── Grand Total ── */
+  .total-bar {
+    display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+    padding: 13px 20px; border-top: 2px solid var(--border); background: #f8fafc;
+  }
+  .total-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .total-value { font-size: 20px; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+  /* ════════════════════════════════════════════
+     MOBILE CARD ROWS  (< 700px)
+     Hide the normal table, show card list instead
+  ════════════════════════════════════════════ */
+  .mobile-rows { display: none; }
+
+  @media (max-width: 699px) {
+    header { padding: 12px 16px; flex-wrap: wrap; }
+    header h1 { font-size: 16px; }
+    main { padding: 14px 12px; gap: 12px; }
+    .pricing-grid { padding: 14px 16px; gap: 12px; grid-template-columns: 1fr 1fr; }
+    .table-toolbar { padding: 12px 16px; }
+    .search-input { min-width: 0; flex: 1; }
+    .total-bar { padding: 12px 16px; }
+    .total-value { font-size: 18px; }
+
+    /* Hide desktop table, show card list */
+    .table-wrap { display: none; }
+    .mobile-rows { display: flex; flex-direction: column; gap: 0; }
+
+    /* Each row is a card */
+    .m-row {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      transition: background .1s;
+    }
+    .m-row:last-child { border-bottom: none; }
+    .m-row:nth-child(even) { background: #f8fafc; }
+
+    /* Top line: ref + name + delete */
+    .m-row-top {
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .m-row-inputs { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .m-field { display: flex; flex-direction: column; gap: 2px; }
+    .m-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .m-input {
+      border: 1.5px solid var(--border); border-radius: 5px;
+      padding: 7px 9px; font-size: 13px; color: var(--text);
+      background: var(--white); outline: none; width: 100%;
+      font-family: inherit; transition: border-color .15s;
+    }
+    .m-input:focus { border-color: var(--blue); }
+    input.m-input[type="number"] { text-align: right; -moz-appearance: textfield; }
+    input.m-input[type="number"]::-webkit-outer-spin-button,
+    input.m-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    /* Grid: qty + ubp in one line, calcs in next */
+    .m-row-nums {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .m-row-calcs {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+      background: #f1f5f9; border-radius: 6px; padding: 8px 10px;
+    }
+    .m-calc { display: flex; flex-direction: column; gap: 2px; }
+    .m-calc-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .m-calc-value { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+    .m-calc-value.is-total { font-weight: 700; color: var(--text); font-size: 14px; }
+
+    .m-delete-btn {
+      background: none; border: none; cursor: pointer; font-size: 18px;
+      opacity: .4; padding: 4px; border-radius: 5px;
+      transition: opacity .15s, background .15s; flex-shrink: 0; margin-top: 2px;
+    }
+    .m-delete-btn:hover { opacity: 1; background: #fee2e2; }
+
+    .m-empty {
+      text-align: center; padding: 32px 16px;
+      color: #94a3b8; font-size: 13px;
+    }
+  }
+
+  /* ── Modal ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 50; align-items: center; justify-content: center; padding: 16px; }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 12px;
+    width: min(500px, 100%); max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .modal-title  { font-size: 16px; font-weight: 700; }
+  .close-btn    { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); border-radius: 4px; padding: 0 4px; transition: background .15s; }
+  .close-btn:hover { background: var(--light); }
+  .modal-section { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 8px; }
+  .save-row { display: flex; gap: 8px; }
+  .save-row input { flex: 1; }
+  .quote-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+  .quote-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 6px; border: 1px solid var(--border); }
+  .quote-item:hover { background: #eef2ff; }
+  .quote-name { font-size: 13px; font-weight: 600; }
+  .quote-actions { display: flex; gap: 6px; }
+  .no-quotes { text-align: center; padding: 20px 0; color: #94a3b8; font-size: 13px; }
+
+  /* ── Confirm Dialog ── */
+  .confirm-modal {
+    background: var(--white); border-radius: 12px;
+    width: min(380px, 100%);
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    animation: slideUp .2s ease;
+    padding: 22px 22px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .confirm-title { font-size: 15px; font-weight: 700; }
+  .confirm-msg   { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; top: 16px; right: 16px; padding: 10px 18px;
+    border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--white);
+    box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 100;
+    opacity: 0; transform: translateY(-8px);
+    transition: opacity .2s, transform .2s; pointer-events: none;
+  }
+  .toast.show  { opacity: 1; transform: none; }
+  .toast.success { background: var(--green); }
+  .toast.error   { background: var(--red);   }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="header-eyebrow">An App By Giovanni Marianne</div>
+    <h1>Quotation Preparation</h1>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="newQuote()">＋ New Quote</button>
+    <button class="btn btn-primary" onclick="openModal()">⊞ Manage Quotations</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- PRICING CARD -->
+  <div class="card">
+    <div class="card-header"><span class="card-label">Pricing Parameters</span></div>
+    <div class="pricing-grid">
+      <div class="input-group">
+        <label class="field-label" for="multiplierType">Price Multiplier</label>
+        <select class="field-input" id="multiplierType" onchange="onMultiplierTypeChange()">
+          <option value="2.1">Standard (2.1)</option>
+          <option value="2.15">SMIA (2.15)</option>
+          <option value="1.3">Third Party (1.3)</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="input-group" id="customMultiplierGroup" style="display:none">
+        <label class="field-label" for="multiplierCustom">Custom Multiplier (M)</label>
+        <input class="field-input" type="number" id="multiplierCustom" step="0.01" value="2.1" oninput="recalcAll()" />
+      </div>
+      <div class="input-group">
+        <label class="field-label" for="adjuster">Exchange Rate Adjuster</label>
+        <input class="field-input" type="number" id="adjuster" step="0.1" value="3" oninput="recalcAll()" />
+      </div>
+      <div class="input-group">
+        <label class="field-label" for="rate">Exchange Rate EUR → MUR</label>
+        <input class="field-input" type="number" id="rate" step="0.01" value="55.55" oninput="recalcAll()" />
+      </div>
+      <div class="adj-rate-box">
+        <div class="adj-rate-label">Adjusted Rate</div>
+        <div class="adj-rate-value" id="adjRateDisplay">58.550 <span class="adj-rate-unit">MUR/EUR</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE CARD -->
+  <div class="card">
+    <div class="table-toolbar">
+      <div class="toolbar-left">
+        <div class="loaded-badge" id="loadedBadge" style="display:none"></div>
+        <div class="section-title">
+          Quotation Items <span class="count-badge" id="itemCount">0</span>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <input class="search-input" type="text" id="searchInput" placeholder="Search part ref or name…" oninput="filterRows()" />
+        <button class="btn btn-primary" onclick="addRow()">+ Add Item</button>
+      </div>
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="table-wrap">
+      <table id="quoteTable">
+        <colgroup>
+          <col class="col-ref" /><col class="col-name" /><col class="col-qty" />
+          <col class="col-ubp" /><col class="col-adj" /><col class="col-usp" />
+          <col class="col-total" /><col class="col-action" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="th-left">Part Reference</th>
+            <th class="th-left">Part Name</th>
+            <th class="th-right">Qty</th>
+            <th class="th-right">Unit Buy Price (EUR)</th>
+            <th class="th-right">Adj. Price (EUR)</th>
+            <th class="th-right">Unit Sell Price (MUR)</th>
+            <th class="th-right">Total (MUR)</th>
+            <th class="th-center"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- MOBILE CARD LIST -->
+    <div class="mobile-rows" id="mobileRows"></div>
+
+    <!-- GRAND TOTAL -->
+    <div class="total-bar">
+      <span class="total-label">Grand Total</span>
+      <span class="total-value" id="grandTotal">MUR 0.00</span>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL -->
+<div class="overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Manage Quotations</h3>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-section">
+      <label class="field-label">Save current quotation as</label>
+      <div class="save-row">
+        <input class="field-input" type="text" id="saveNameInput" placeholder="Quotation name…"
+               onkeydown="if(event.key==='Enter') saveQuote()" />
+        <button class="btn btn-success" onclick="saveQuote()">Save</button>
+      </div>
+    </div>
+    <div class="modal-section">
+      <label class="field-label">Saved quotations</label>
+      <input class="search-input" type="text" id="modalSearch" placeholder="Search saved…"
+             oninput="renderQuoteList()" style="width:100%" />
+      <div class="quote-list" id="quoteList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG (delete item / new quote) -->
+<div class="overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">Are you sure?</div>
+    <div class="confirm-msg" id="confirmMsg">This action cannot be undone.</div>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmCancelBtn" style="background:#f1f5f9;color:var(--text)">Cancel</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ── */
+const STORAGE_KEY = 'qms_autosave';
+const QUOTES_KEY  = 'qms_saved_quotes';
+let rows = [], savedQuotes = {}, loadedName = '', toastTimer = null, rowIdCounter = 0;
+
+/* ── Init ── */
+window.addEventListener('DOMContentLoaded', () => {
+  try { const r = localStorage.getItem(QUOTES_KEY); if (r) savedQuotes = JSON.parse(r); } catch {}
+  try {
+    const r = localStorage.getItem(STORAGE_KEY);
+    if (r) {
+      const s = JSON.parse(r);
+      if (s.multiplierType != null) document.getElementById('multiplierType').value = s.multiplierType;
+      if (s.multiplierCustom != null) document.getElementById('multiplierCustom').value = s.multiplierCustom;
+      if (s.adjuster   != null) document.getElementById('adjuster').value   = s.adjuster;
+      if (s.rate       != null) document.getElementById('rate').value        = s.rate;
+      if (s.rows)       rows       = s.rows;
+      if (s.loadedName) loadedName = s.loadedName;
+    }
+  } catch {}
+  onMultiplierTypeChange(false);
+  renderAll();
+  recalcAll();
+  showLoadedBadge();
+});
+
+/* ── Helpers ── */
+function fmt(n, d = 2) {
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function onMultiplierTypeChange(recalc = true) {
+  const type = document.getElementById('multiplierType').value;
+  const customGroup = document.getElementById('customMultiplierGroup');
+  customGroup.style.display = (type === 'custom') ? 'flex' : 'none';
+  if (recalc) recalcAll();
+}
+function getParams() {
+  const type = document.getElementById('multiplierType').value;
+  let m;
+  if (type === 'custom') {
+    m = parseFloat(document.getElementById('multiplierCustom').value) || 0;
+  } else {
+    m = parseFloat(type) || 0;
+  }
+  const a = parseFloat(document.getElementById('adjuster').value)   || 0;
+  const r = parseFloat(document.getElementById('rate').value)        || 0;
+  return { multiplier: m, adjuster: a, rate: r, adjRate: r + a };
+}
+function calcRow(row, multiplier, adjRate) {
+  const qty = parseFloat(row.qty) || 0, ubp = parseFloat(row.ubp) || 0;
+  const adjPrice = ubp * multiplier, usp = adjPrice * adjRate;
+  return { adjPrice, usp, total: qty * usp };
+}
+function uid() { return 'r' + (++rowIdCounter) + '_' + Math.random().toString(36).slice(2,6); }
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Autosave ── */
+function autosave() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      multiplierType:   document.getElementById('multiplierType').value,
+      multiplierCustom: document.getElementById('multiplierCustom').value,
+      adjuster:   document.getElementById('adjuster').value,
+      rate:       document.getElementById('rate').value,
+      rows, loadedName
+    }));
+  } catch {}
+}
+function saveQuotes() {
+  try { localStorage.setItem(QUOTES_KEY, JSON.stringify(savedQuotes)); } catch {}
+}
+
+/* ── Recalc ── */
+function recalcAll() {
+  const { multiplier, adjRate } = getParams();
+  document.getElementById('adjRateDisplay').innerHTML =
+    fmt(adjRate, 3) + ' <span class="adj-rate-unit">MUR/EUR</span>';
+
+  let grandTotal = 0;
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+
+  // Update desktop table rows
+  document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
+    const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
+    const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
+    const visible = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
+    if (visible) grandTotal += total;
+    tr.querySelector('.cell-adj-price').textContent = fmt(adjPrice);
+    tr.querySelector('.cell-usp').textContent        = fmt(usp);
+    tr.querySelector('.cell-total').textContent      = fmt(total);
+  });
+
+  // Update mobile card rows
+  document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
+    const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
+    const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
+    card.querySelector('.m-adj-price').textContent = fmt(adjPrice);
+    card.querySelector('.m-usp').textContent        = fmt(usp);
+    card.querySelector('.m-total').textContent      = fmt(total);
+  });
+
+  document.getElementById('grandTotal').textContent = 'MUR ' + fmt(grandTotal);
+  autosave();
+}
+
+/* ── Row management ── */
+function addRow() {
+  const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0 };
+  rows.push(row);
+  appendDesktopRow(row);
+  appendMobileCard(row);
+  removeEmptyState();
+  recalcAll();
+  updateCount();
+}
+
+function deleteRow(id) {
+  const row = rows.find(r => r.id === id);
+  const label = row && (row.ref || row.name) ? `"${row.ref || row.name}"` : 'this item';
+  showConfirm(
+    'Delete item?',
+    `Are you sure you want to delete ${label}? This cannot be undone.`,
+    () => {
+      rows = rows.filter(r => r.id !== id);
+      const tr   = document.querySelector(`#tableBody tr[data-id="${id}"]`);
+      const card = document.querySelector(`#mobileRows .m-row[data-id="${id}"]`);
+      if (tr)   tr.remove();
+      if (card) card.remove();
+      recalcAll();
+      updateCount();
+      checkEmpty();
+      showToast('Item deleted', 'error');
+    }
+  );
+}
+
+function updateRowField(id, field, value) {
+  const row = rows.find(r => r.id === id);
+  if (row) row[field] = value;
+  // Keep sibling input in sync (desktop ↔ mobile)
+  syncSiblingInput(id, field, value);
+  recalcAll();
+}
+
+function syncSiblingInput(id, field, value) {
+  // When user edits desktop, update mobile and vice-versa
+  const desktopInputs = document.querySelectorAll(`#tableBody tr[data-id="${id}"] input[data-field="${field}"]`);
+  const mobileInputs  = document.querySelectorAll(`#mobileRows .m-row[data-id="${id}"] input[data-field="${field}"]`);
+  [...desktopInputs, ...mobileInputs].forEach(inp => {
+    if (document.activeElement !== inp) inp.value = value;
+  });
+}
+
+/* ── Render helpers ── */
+function renderAll() {
+  document.getElementById('tableBody').innerHTML = '';
+  document.getElementById('mobileRows').innerHTML = '';
+  rows.forEach(row => { appendDesktopRow(row); appendMobileCard(row); });
+  checkEmpty();
+  updateCount();
+}
+
+function appendDesktopRow(row) {
+  removeEmptyState();
+  const tr = document.createElement('tr');
+  tr.dataset.id = row.id;
+  tr.innerHTML = `
+    <td class="td-text">
+      <input class="cell-input" type="text" data-field="ref" value="${esc(row.ref)}"
+        placeholder="e.g. 12345678" oninput="updateRowField('${row.id}','ref',this.value)" />
+    </td>
+    <td class="td-text">
+      <input class="cell-input" type="text" data-field="name" value="${esc(row.name)}"
+        placeholder="Part description" oninput="updateRowField('${row.id}','name',this.value)" />
+    </td>
+    <td class="td-num">
+      <input class="cell-input" type="number" data-field="qty" min="0" value="${row.qty}"
+        oninput="updateRowField('${row.id}','qty',this.value)" />
+    </td>
+    <td class="td-num">
+      <input class="cell-input" type="number" data-field="ubp" min="0" step="0.01" value="${row.ubp}"
+        oninput="updateRowField('${row.id}','ubp',this.value)" />
+    </td>
+    <td class="td-calc calc-cell cell-adj-price">0.00</td>
+    <td class="td-calc calc-cell cell-usp">0.00</td>
+    <td class="td-calc total-cell cell-total">0.00</td>
+    <td class="td-act">
+      <button class="delete-btn" title="Delete" onclick="deleteRow('${row.id}')">🗑</button>
+    </td>`;
+  document.getElementById('tableBody').appendChild(tr);
+}
+
+function appendMobileCard(row) {
+  const mobileRows = document.getElementById('mobileRows');
+  const emptyEl = mobileRows.querySelector('.m-empty');
+  if (emptyEl) emptyEl.remove();
+
+  const card = document.createElement('div');
+  card.className = 'm-row';
+  card.dataset.id = row.id;
+  card.innerHTML = `
+    <div class="m-row-top">
+      <div class="m-row-inputs">
+        <div class="m-field">
+          <span class="m-label">Part Reference</span>
+          <input class="m-input" type="text" data-field="ref" value="${esc(row.ref)}"
+            placeholder="e.g. 12345678" oninput="updateRowField('${row.id}','ref',this.value)" />
+        </div>
+        <div class="m-field">
+          <span class="m-label">Part Name</span>
+          <input class="m-input" type="text" data-field="name" value="${esc(row.name)}"
+            placeholder="Description" oninput="updateRowField('${row.id}','name',this.value)" />
+        </div>
+      </div>
+      <button class="m-delete-btn" title="Delete" onclick="deleteRow('${row.id}')">🗑</button>
+    </div>
+    <div class="m-row-nums">
+      <div class="m-field">
+        <span class="m-label">Qty</span>
+        <input class="m-input" type="number" data-field="qty" min="0" value="${row.qty}"
+          oninput="updateRowField('${row.id}','qty',this.value)" />
+      </div>
+      <div class="m-field">
+        <span class="m-label">Unit Buy Price (EUR)</span>
+        <input class="m-input" type="number" data-field="ubp" min="0" step="0.01" value="${row.ubp}"
+          oninput="updateRowField('${row.id}','ubp',this.value)" />
+      </div>
+    </div>
+    <div class="m-row-calcs">
+      <div class="m-calc">
+        <span class="m-calc-label">Adj. Price (EUR)</span>
+        <span class="m-calc-value m-adj-price">0.00</span>
+      </div>
+      <div class="m-calc">
+        <span class="m-calc-label">Sell Price (MUR)</span>
+        <span class="m-calc-value m-usp">0.00</span>
+      </div>
+      <div class="m-calc">
+        <span class="m-calc-label">Total (MUR)</span>
+        <span class="m-calc-value is-total m-total">0.00</span>
+      </div>
+    </div>`;
+  mobileRows.appendChild(card);
+}
+
+function removeEmptyState() {
+  const te = document.querySelector('#tableBody .empty-row');
+  const me = document.querySelector('#mobileRows .m-empty');
+  if (te) te.remove();
+  if (me) me.remove();
+}
+
+function checkEmpty() {
+  const tbody      = document.getElementById('tableBody');
+  const mobileRows = document.getElementById('mobileRows');
+  if (!rows.length) {
+    const msg = 'No items yet — click <strong>+ Add Item</strong> to begin.';
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${msg}</td></tr>`;
+    mobileRows.innerHTML = `<div class="m-empty">${msg}</div>`;
+  }
+}
+
+function updateCount() {
+  document.getElementById('itemCount').textContent = rows.length;
+}
+
+/* ── Search / Filter ── */
+function filterRows() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+
+  if (!rows.length) { checkEmpty(); return; }
+  removeEmptyState();
+
+  let visible = 0;
+
+  // Desktop
+  document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
+    const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
+    const match = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
+    tr.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+
+  // Mobile
+  document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
+    const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
+    const match = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
+    card.style.display = match ? '' : 'none';
+  });
+
+  if (visible === 0) {
+    const msg = 'No rows match your search.';
+    const tbody = document.getElementById('tableBody');
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    tr.innerHTML = `<td colspan="8">${msg}</td>`;
+    tbody.appendChild(tr);
+    const mobileRows = document.getElementById('mobileRows');
+    const div = document.createElement('div');
+    div.className = 'm-empty'; div.textContent = msg;
+    mobileRows.appendChild(div);
+  }
+
+  recalcAll();
+}
+
+/* ── Loaded badge ── */
+function showLoadedBadge() {
+  const el = document.getElementById('loadedBadge');
+  if (loadedName) { el.textContent = '📄 ' + loadedName; el.style.display = 'block'; }
+  else            { el.style.display = 'none'; }
+}
+
+/* ── New Quote ── */
+function newQuote() {
+  const hasContent = rows.length > 0 || loadedName;
+  const start = () => {
+    rows = [];
+    loadedName = '';
+    document.getElementById('multiplierType').value = '2.1';
+    document.getElementById('multiplierCustom').value = '2.1';
+    onMultiplierTypeChange(false);
+    document.getElementById('searchInput').value = '';
+    renderAll();
+    recalcAll();
+    showLoadedBadge();
+    showToast('New quotation started');
+  };
+  if (hasContent) {
+    showConfirm(
+      'Start a new quote?',
+      'Any unsaved changes to the current quotation will be lost. Save it first if you want to keep it.',
+      start
+    );
+  } else {
+    start();
+  }
+}
+
+/* ── Modal (Manage Quotations) ── */
+function openModal()  { document.getElementById('modalOverlay').classList.add('open'); document.getElementById('modalSearch').value = ''; renderQuoteList(); }
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+/* ── Generic Confirm Dialog ── */
+function showConfirm(title, msg, onConfirm) {
+  const overlay  = document.getElementById('confirmOverlay');
+  const okBtn    = document.getElementById('confirmOkBtn');
+  const cancelBtn = document.getElementById('confirmCancelBtn');
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent    = msg;
+  overlay.classList.add('open');
+
+  const cleanup = () => {
+    overlay.classList.remove('open');
+    okBtn.removeEventListener('click', onOk);
+    cancelBtn.removeEventListener('click', onCancel);
+  };
+  const onOk = () => { cleanup(); onConfirm(); };
+  const onCancel = () => { cleanup(); };
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
+}
+
+/* ── Save / Load / Delete ── */
+function saveQuote() {
+  const name = document.getElementById('saveNameInput').value.trim();
+  if (!name) { showToast('Enter a name first', 'error'); return; }
+  const { adjuster, rate } = getParams();
+  savedQuotes[name] = {
+    multiplierType:   document.getElementById('multiplierType').value,
+    multiplierCustom: document.getElementById('multiplierCustom').value,
+    adjuster, rate,
+    rows: JSON.parse(JSON.stringify(rows))
+  };
+  saveQuotes(); loadedName = name; showLoadedBadge(); autosave();
+  document.getElementById('saveNameInput').value = '';
+  renderQuoteList(); 
+  showToast('Saved "' + name + '"');
+  
+  // Automatically close modal after a short delay
+  setTimeout(() => {
+    closeModal();
+  }, 1200);
+}
+
+function loadQuote(name) {
+  const q = savedQuotes[name]; if (!q) return;
+  // Backward compatibility with quotations saved before the dropdown existed
+  if (q.multiplierType != null) {
+    document.getElementById('multiplierType').value = q.multiplierType;
+    document.getElementById('multiplierCustom').value = q.multiplierCustom ?? q.multiplier ?? 2.1;
+  } else if (q.multiplier != null) {
+    const knownValues = ['2.1', '2.15', '1.3'];
+    const asStr = String(q.multiplier);
+    document.getElementById('multiplierType').value = knownValues.includes(asStr) ? asStr : 'custom';
+    document.getElementById('multiplierCustom').value = q.multiplier;
+  }
+  onMultiplierTypeChange(false);
+  document.getElementById('adjuster').value = q.adjuster;
+  document.getElementById('rate').value      = q.rate;
+  rows = JSON.parse(JSON.stringify(q.rows)); loadedName = name;
+  renderAll(); recalcAll(); showLoadedBadge(); closeModal();
+  showToast('Loaded "' + name + '"');
+}
+
+function deleteQuote(name) {
+  showConfirm(
+    'Delete quotation?',
+    `Are you sure you want to delete "${name}"? This cannot be undone.`,
+    () => {
+      delete savedQuotes[name]; saveQuotes();
+      if (loadedName === name) { loadedName = ''; showLoadedBadge(); autosave(); }
+      renderQuoteList(); showToast('Deleted "' + name + '"', 'error');
+    }
+  );
+}
+
+function renderQuoteList() {
+  const q    = document.getElementById('modalSearch').value.toLowerCase().trim();
+  const el   = document.getElementById('quoteList');
+  const keys = Object.keys(savedQuotes).filter(k => !q || k.toLowerCase().includes(q));
+  if (!keys.length) {
+    el.innerHTML = `<div class="no-quotes">${q ? 'No matches found.' : 'No saved quotations yet.'}</div>`;
+    return;
+  }
+  el.innerHTML = keys.map(name => `
+    <div class="quote-item">
+      <span class="quote-name">${esc(name)}</span>
+      <div class="quote-actions">
+        <button class="btn btn-primary btn-sm" onclick="loadQuote('${esc(name)}')">Load</button>
+        <button class="btn btn-danger btn-sm"  onclick="deleteQuote('${esc(name)}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+/* ── Toast ── */
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type;
+  void t.offsetWidth; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
