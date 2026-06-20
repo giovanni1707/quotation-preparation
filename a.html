@@ -154,9 +154,7 @@
   }
   .search-input:focus { border-color: var(--blue); }
 
-  /* ════════════════════════════════════════════
-     DESKTOP TABLE (≥ 700px)
-  ════════════════════════════════════════════ */
+  /* ── Desktop Table ── */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
     width: 100%; border-collapse: collapse; font-size: 13px;
@@ -224,7 +222,7 @@
     color: var(--muted); font-size: 13px; white-space: normal;
   }
 
-  /* ── Grand Total ── */
+  /* ── Grand Total Bar ── */
   .total-bar {
     display: flex; align-items: center; justify-content: flex-end; gap: 14px;
     padding: 13px 20px; border-top: 2px solid var(--border); background: var(--row-even);
@@ -232,10 +230,7 @@
   .total-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
   .total-value { font-size: 20px; font-weight: 800; color: var(--blue); font-variant-numeric: tabular-nums; }
 
-  /* ════════════════════════════════════════════
-     MOBILE CARD ROWS  (< 700px)
-     Hide the normal table, show card list instead
-  ════════════════════════════════════════════ */
+  /* ── Mobile Rows (< 700px) ── */
   .mobile-rows { display: none; }
 
   @media (max-width: 699px) {
@@ -248,11 +243,9 @@
     .total-bar { padding: 12px 16px; }
     .total-value { font-size: 18px; }
 
-    /* Hide desktop table, show card list */
     .table-wrap { display: none; }
     .mobile-rows { display: flex; flex-direction: column; gap: 0; }
 
-    /* Each row is a card */
     .m-row {
       border-bottom: 1px solid var(--border);
       padding: 12px 16px;
@@ -262,7 +255,6 @@
     .m-row:last-child { border-bottom: none; }
     .m-row:nth-child(even) { background: var(--row-even); }
 
-    /* Top line: ref + name + delete */
     .m-row-top {
       display: flex; align-items: flex-start; gap: 8px;
     }
@@ -280,7 +272,6 @@
     input.m-input[type="number"]::-webkit-outer-spin-button,
     input.m-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-    /* Grid: qty + ubp in one line, calcs in next */
     .m-row-nums {
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
@@ -309,7 +300,7 @@
     .m-date { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
   }
 
-  /* ── Modal ── */
+  /* ── Modals & Overlays ── */
   .overlay { display: none; position: fixed; inset: 0; background: var(--modal-overlay); z-index: 50; align-items: center; justify-content: center; padding: 16px; transition: background .3s; }
   .overlay.open { display: flex; }
   .modal {
@@ -369,6 +360,8 @@
     main { padding: 0; margin: 0; max-width: none; }
     .card { box-shadow: none; border: 1px solid #eee; margin-bottom: 20px; }
     .card-header { background: #f9f9f9; }
+    #quoteMetaCard { display: block !important; border: 1px solid #eee !important; }
+    #quoteMetaCard button { display: none !important; }
     table { min-width: 0; width: 100%; table-layout: auto; }
     th, td { border: 1px solid #eee; font-size: 11px; padding: 6px; }
     .cell-input { border: none; padding: 0; }
@@ -397,98 +390,247 @@
     <button class="btn btn-outline" onclick="printQuote()">🖨 Print</button>
     <button class="btn btn-outline" onclick="exportCSV()">📊 Export CSV</button>
     <button class="btn btn-outline" onclick="exportPDF()">📄 Export PDF</button>
-    <button class="btn btn-outline" onclick="newQuote()">＋ New Quote</button>
+    <button class="btn btn-outline" onclick="handleNewQuoteBtnClick()">＋ New Quote</button>
+    <button class="btn btn-outline" onclick="openSettingsModal()" title="Templates & Settings">⚙️ Settings</button>
     <button class="btn btn-primary" onclick="openModal()">⊞ Manage Quotations</button>
   </div>
 </header>
 
 <main>
 
-  <!-- PRICING CARD -->
-  <div class="card">
-    <div class="card-header"><span class="card-label">Pricing Parameters</span></div>
-    <div class="pricing-grid">
-      <div class="input-group">
-        <label class="field-label" for="multiplierType">Price Multiplier</label>
-        <select class="field-input" id="multiplierType" onchange="onMultiplierTypeChange()">
-          <option value="2.1">Standard (2.1)</option>
-          <option value="2.15">SMIA (2.15)</option>
-          <option value="1.3">Third Party (1.3)</option>
-          <option value="custom">Custom</option>
-        </select>
+  <!-- WELCOME SPLASH -->
+  <div id="welcomeSplash" class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; gap: 20px; max-width: 600px; margin: 40px auto;">
+    <div style="font-size: 40px;">📋</div>
+    <div>
+      <h2 style="font-size: 22px; font-weight: 800; color: var(--navy); margin-bottom: 8px;">Quotation Preparation Portal</h2>
+      <p style="font-size: 14px; color: var(--muted); max-width: 420px; line-height: 1.5;">To begin preparing a spare parts quotation, please create a new quote or manage saved quotations.</p>
+    </div>
+    <div style="display: flex; gap: 12px; margin-top: 8px;">
+      <button class="btn btn-primary" onclick="openQuoteInfoModal(true)" style="padding: 10px 18px; font-size: 14px;">＋ Create New Quote</button>
+      <button class="btn btn-outline" style="background:var(--navy); color:white;" onclick="openModal()">⊞ Manage Saved Quotes</button>
+    </div>
+  </div>
+
+  <!-- ACTIVE METADATA CARD -->
+  <div class="card" id="quoteMetaCard" style="display:none; margin-bottom:16px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="card-label">Quotation Details</span>
+      <button class="btn btn-primary btn-sm" onclick="openQuoteInfoModal(false)" style="padding: 4px 8px; font-size: 11px;">✏️ Edit Info</button>
+    </div>
+    <div style="padding: 16px 20px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div>
+          <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">CLIENT</div>
+          <div id="metaDispClient" style="font-size: 14px; font-weight: 700;">-</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">QUOTE NUMBER / REF</div>
+          <div id="metaDispQuoteAndRef" style="font-size: 14px; font-weight: 600;">- / -</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">DATES</div>
+          <div id="metaDispDates" style="font-size: 13px;">-</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">CURRENCY / TAX / TERMS</div>
+          <div id="metaDispDetails" style="font-size: 13px;">-</div>
+        </div>
       </div>
-      <div class="input-group" id="customMultiplierGroup" style="display:none">
-        <label class="field-label" for="multiplierCustom">Custom Multiplier (M)</label>
-        <input class="field-input" type="number" id="multiplierCustom" step="0.01" value="2.1" oninput="recalcAll()" />
+      <div id="metaDispProviderSection" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: none;">
+        <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">SERVICE PROVIDER</div>
+        <div id="metaDispProvider" style="font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--text);"></div>
       </div>
-      <div class="input-group">
-        <label class="field-label" for="adjuster">Exchange Rate Adjuster</label>
-        <input class="field-input" type="number" id="adjuster" step="0.1" value="3" oninput="recalcAll()" />
-      </div>
-      <div class="input-group">
-        <label class="field-label" for="rate">Exchange Rate EUR → MUR</label>
-        <input class="field-input" type="number" id="rate" step="0.01" value="55.55" oninput="recalcAll()" />
-      </div>
-      <div class="adj-rate-box">
-        <div class="adj-rate-label">Adjusted Rate</div>
-        <div class="adj-rate-value" id="adjRateDisplay">58.550 <span class="adj-rate-unit">MUR/EUR</span></div>
+      <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+        <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">TERMS &amp; CONDITIONS TEXT</div>
+        <div id="metaDispTermsText" style="font-size: 12px; font-style: italic; color: var(--muted); white-space: pre-line; background: var(--row-even); padding: 8px 12px; border-radius: 6px; margin-top: 4px;"></div>
       </div>
     </div>
   </div>
 
-  <!-- TABLE CARD -->
-  <div class="card">
-    <div class="table-toolbar">
-      <div class="toolbar-left">
-        <div class="loaded-badge" id="loadedBadge" style="display:none"></div>
-        <div class="section-title">
-          Quotation Items <span class="count-badge" id="itemCount">0</span>
+  <!-- EDITOR CONTAINER -->
+  <div id="editorContainer" style="display:none">
+    
+    <!-- PRICING CARD -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="card-label">Pricing Parameters</span></div>
+      <div class="pricing-grid">
+        <div class="input-group">
+          <label class="field-label" for="multiplierType">Price Multiplier</label>
+          <select class="field-input" id="multiplierType" onchange="onMultiplierTypeChange()">
+            <option value="2.1">Standard (2.1)</option>
+            <option value="2.15">SMIA (2.15)</option>
+            <option value="1.3">Third Party (1.3)</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="input-group" id="customMultiplierGroup" style="display:none">
+          <label class="field-label" for="multiplierCustom">Custom Multiplier (M)</label>
+          <input class="field-input" type="number" id="multiplierCustom" step="0.01" value="2.1" oninput="recalcAll()" />
+        </div>
+        <div class="input-group">
+          <label class="field-label" for="adjuster">Exchange Rate Adjuster</label>
+          <input class="field-input" type="number" id="adjuster" step="0.1" value="3" oninput="recalcAll()" />
+        </div>
+        <div class="input-group">
+          <label class="field-label" for="rate">Exchange Rate EUR → MUR</label>
+          <input class="field-input" type="number" id="rate" step="0.01" value="55.55" oninput="recalcAll()" />
+        </div>
+        <div class="adj-rate-box">
+          <div class="adj-rate-label">Adjusted Rate</div>
+          <div class="adj-rate-value" id="adjRateDisplay">58.550 <span class="adj-rate-unit">MUR/EUR</span></div>
         </div>
       </div>
-      <div class="toolbar-right">
-        <input class="search-input" type="text" id="searchInput" placeholder="Search part ref or name…" oninput="filterRows()" />
-        <button class="btn btn-primary" onclick="addRow()">+ Add Item</button>
+    </div>
+
+    <!-- TABLE CARD -->
+    <div class="card">
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <div class="loaded-badge" id="loadedBadge" style="display:none"></div>
+          <div class="section-title">
+            Quotation Items <span class="count-badge" id="itemCount">0</span>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <input class="search-input" type="text" id="searchInput" placeholder="Search part ref or name…" oninput="filterRows()" />
+          <button class="btn btn-primary" onclick="addRow()">+ Add Item</button>
+        </div>
       </div>
-    </div>
 
-    <!-- DESKTOP TABLE -->
-    <div class="table-wrap">
-      <table id="quoteTable">
-        <colgroup>
-          <col class="col-date" /><col class="col-ref" /><col class="col-name" /><col class="col-qty" />
-          <col class="col-ubp" /><col class="col-adj" /><col class="col-usp" />
-          <col class="col-total" /><col class="col-action" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th class="th-left">Date Added</th>
-            <th class="th-left">Part Reference</th>
-            <th class="th-left">Part Name</th>
-            <th class="th-right">Qty</th>
-            <th class="th-right">Unit Buy Price (EUR)</th>
-            <th class="th-right">Adj. Price (EUR)</th>
-            <th class="th-right">Unit Sell Price (MUR)</th>
-            <th class="th-right">Total (MUR)</th>
-            <th class="th-center"></th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
+      <!-- DESKTOP TABLE -->
+      <div class="table-wrap">
+        <table id="quoteTable">
+          <colgroup>
+            <col class="col-date" /><col class="col-ref" /><col class="col-name" /><col class="col-qty" />
+            <col class="col-ubp" /><col class="col-adj" /><col class="col-usp" />
+            <col class="col-total" /><col class="col-action" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="th-left">Date Added</th>
+              <th class="th-left">Part Reference</th>
+              <th class="th-left">Part Name</th>
+              <th class="th-right">Qty</th>
+              <th class="th-right">Unit Buy Price (EUR)</th>
+              <th class="th-right">Adj. Price (EUR)</th>
+              <th class="th-right"><span class="sell-currency-label">Unit Sell Price (MUR)</span></th>
+              <th class="th-right"><span class="total-currency-label">Total (MUR)</span></th>
+              <th class="th-center"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
 
-    <!-- MOBILE CARD LIST -->
-    <div class="mobile-rows" id="mobileRows"></div>
+      <!-- MOBILE CARD LIST -->
+      <div class="mobile-rows" id="mobileRows"></div>
 
-    <!-- GRAND TOTAL -->
-    <div class="total-bar">
-      <span class="total-label">Grand Total</span>
-      <span class="total-value" id="grandTotal">MUR 0.00</span>
+      <!-- GRAND TOTAL BREAKDOWN -->
+      <div class="total-bar" style="flex-direction: column; align-items: flex-end; gap: 6px;">
+        <div style="display: flex; gap: 12px; font-size: 13px;">
+          <span class="total-label">Subtotal</span>
+          <span id="grandSubtotal" style="font-variant-numeric: tabular-nums; font-weight: 600;">MUR 0.00</span>
+        </div>
+        <div style="display: flex; gap: 12px; font-size: 13px;" id="taxRow">
+          <span class="total-label" id="taxLabel">VAT (15%)</span>
+          <span id="grandTax" style="font-variant-numeric: tabular-nums; font-weight: 600;">MUR 0.00</span>
+        </div>
+        <div style="display: flex; gap: 12px; border-top: 1px solid var(--border); padding-top: 6px; margin-top: 2px; width: 100%; justify-content: flex-end; align-items: center;">
+          <span class="total-label" style="font-size: 12px;">Grand Total</span>
+          <span class="total-value" id="grandTotal">MUR 0.00</span>
+        </div>
+      </div>
+
     </div>
   </div>
 
 </main>
 
-<!-- MODAL -->
+<!-- QUOTE INFO MODAL -->
+<div class="overlay" id="quoteInfoOverlay" onclick="quoteInfoOverlayClick(event)">
+  <div class="modal" style="width: min(600px, 100%);">
+    <div class="modal-header">
+      <h3 class="modal-title" id="quoteInfoModalTitle">Quotation Details</h3>
+      <button class="close-btn" onclick="closeQuoteInfoModal()">×</button>
+    </div>
+    <div class="modal-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      
+      <div class="input-group" style="grid-column: span 2;">
+        <label class="field-label" style="font-weight:700">Client <span style="color:var(--red)">*</span></label>
+        <input class="field-input" type="text" id="infoClient" placeholder="e.g. Acme Corporation" required />
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Quote Number <span style="color:var(--red)">*</span></label>
+        <input class="field-input" type="text" id="infoQuoteNo" placeholder="e.g. QT-20260620-01" required />
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Reference <span style="color:var(--red)">*</span></label>
+        <input class="field-input" type="text" id="infoRef" placeholder="e.g. PRJ-9876" required />
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Issue Date <span style="color:var(--red)">*</span></label>
+        <input class="field-input" type="date" id="infoIssueDate" required />
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Expiration Date <span style="color:var(--red)">*</span></label>
+        <select class="field-input" id="infoExpiryOption" onchange="onExpiryOptionChange()" required>
+          <option value="7">7 Days</option>
+          <option value="14">14 Days</option>
+          <option value="30" selected>30 Days</option>
+          <option value="custom">Pick Another Date</option>
+        </select>
+      </div>
+
+      <div class="input-group" id="infoCustomExpiryGroup" style="display:none; grid-column: span 2;">
+        <label class="field-label" style="font-weight:700">Pick Custom Expiry Date <span style="color:var(--red)">*</span></label>
+        <input class="field-input" type="date" id="infoExpiryDateCustom" />
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Currency <span style="color:var(--red)">*</span></label>
+        <select class="field-input" id="infoCurrency" required>
+          <option value="MUR" selected>MUR (Mauritian Rupee)</option>
+          <option value="EUR">EUR (Euro)</option>
+          <option value="USD">USD (US Dollar)</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Tax <span style="color:var(--red)">*</span></label>
+        <select class="field-input" id="infoTax" required>
+          <option value="15" selected>15% VAT</option>
+          <option value="10">10% Tax</option>
+          <option value="5">5% VAT</option>
+          <option value="0">No Tax (0%)</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Terms &amp; Conditions Type <span style="color:var(--red)">*</span></label>
+        <select class="field-input" id="infoTermsType" required>
+          <option value="Exworks" selected>Exworks</option>
+          <option value="Exstock">Exstock</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Service Provider (Optional)</label>
+        <select class="field-input" id="infoProvider"></select>
+      </div>
+
+    </div>
+    <div class="modal-section" style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn" style="background:var(--table-head); color:var(--text)" onclick="closeQuoteInfoModal()">Cancel</button>
+      <button class="btn btn-success" onclick="saveQuoteInfo()">Save &amp; Proceed</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE MODAL -->
 <div class="overlay" id="modalOverlay" onclick="overlayClick(event)">
   <div class="modal">
     <div class="modal-header">
@@ -512,6 +654,30 @@
   </div>
 </div>
 
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settingsOverlay" onclick="settingsOverlayClick(event)">
+  <div class="modal" style="width: min(550px, 100%);">
+    <div class="modal-header">
+      <h3 class="modal-title">Settings - Terms &amp; Conditions Templates</h3>
+      <button class="close-btn" onclick="closeSettingsModal()">×</button>
+    </div>
+    <div class="modal-section">
+      <div class="input-group" style="margin-bottom:12px;">
+        <label class="field-label" style="font-weight:700">Exworks Terms &amp; Conditions Template</label>
+        <textarea class="field-input" id="settingsExworks" style="height:110px; font-family:inherit; resize:vertical; padding:8px; font-size:12px;"></textarea>
+      </div>
+      <div class="input-group">
+        <label class="field-label" style="font-weight:700">Exstock Terms &amp; Conditions Template</label>
+        <textarea class="field-input" id="settingsExstock" style="height:110px; font-family:inherit; resize:vertical; padding:8px; font-size:12px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-section" style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn" style="background:var(--table-head); color:var(--text)" onclick="closeSettingsModal()">Cancel</button>
+      <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM DIALOG (delete item / new quote) -->
 <div class="overlay" id="confirmOverlay">
   <div class="confirm-modal">
@@ -529,14 +695,42 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
+/* ── Global Constants ── */
+const SERVICE_PROVIDERS = [
+  {
+    id: 'bavarian',
+    name: 'Bavarian Packaging Solution Ltd',
+    address: 'Socota Phenicia, Route Sayed Hossein, Solferino, Mauritius',
+    vat: '27252674',
+    brn: 'C13120111',
+    tel: '4276441',
+    fax: '4276119'
+  }
+];
+
+const DEFAULT_SETTINGS = {
+  exworksTerms: "1. Prices are on an Ex-Works basis.\n2. Payment terms: 100% advance payment.\n3. Delivery: Subject to confirmation.",
+  exstockTerms: "1. Goods are subject to prior sale (Ex-stock).\n2. Payment terms: COD or immediate bank transfer.\n3. Delivery: Immediate, upon payment confirmation."
+};
+
 /* ── State ── */
 const STORAGE_KEY = 'qms_autosave';
 const QUOTES_KEY  = 'qms_saved_quotes';
 const THEME_KEY   = 'qms_theme';
 let rows = [], savedQuotes = {}, loadedName = '', toastTimer = null, rowIdCounter = 0;
+let currentQuoteMeta = null;
+let isCreatingNewQuote = false;
 
 /* ── Init ── */
 window.addEventListener('DOMContentLoaded', () => {
+  // Initialize Default Settings if empty
+  if (!localStorage.getItem('qms_settings')) {
+    localStorage.setItem('qms_settings', JSON.stringify(DEFAULT_SETTINGS));
+  }
+
+  // Populate optional Service Providers dropdown
+  populateProviderDropdown();
+
   // Theme init
   const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
@@ -553,10 +747,13 @@ window.addEventListener('DOMContentLoaded', () => {
       if (s.rate       != null) document.getElementById('rate').value        = s.rate;
       if (s.rows)       rows       = s.rows;
       if (s.loadedName) loadedName = s.loadedName;
+      if (s.currentQuoteMeta) currentQuoteMeta = s.currentQuoteMeta;
     }
   } catch {}
+  
   onMultiplierTypeChange(false);
   renderAll();
+  toggleUIState();
   recalcAll();
   showLoadedBadge();
 });
@@ -606,7 +803,7 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* ── Autosave ── */
+/* ── Autosave / Persistence ── */
 function autosave() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -614,7 +811,8 @@ function autosave() {
       multiplierCustom: document.getElementById('multiplierCustom').value,
       adjuster:   document.getElementById('adjuster').value,
       rate:       document.getElementById('rate').value,
-      rows, loadedName
+      rows, loadedName,
+      currentQuoteMeta
     }));
   } catch {}
 }
@@ -622,39 +820,295 @@ function saveQuotes() {
   try { localStorage.setItem(QUOTES_KEY, JSON.stringify(savedQuotes)); } catch {}
 }
 
-/* ── Keep the persisted saved quotation in sync with the live table ──
-   Without this, deleting a row from a *loaded* saved quotation only
-   removed it from the on-screen table/draft — reloading that same
-   quotation from the modal would bring the "deleted" item back. */
 function syncLoadedQuote() {
   if (loadedName && savedQuotes[loadedName]) {
     savedQuotes[loadedName].rows = JSON.parse(JSON.stringify(rows));
+    savedQuotes[loadedName].currentQuoteMeta = JSON.parse(JSON.stringify(currentQuoteMeta));
     savedQuotes[loadedName].lastModified = getNow();
     saveQuotes();
   }
 }
 
-/* ── Recalc ── */
+/* ── Settings Templates ── */
+function getSettings() {
+  try {
+    const r = localStorage.getItem('qms_settings');
+    if (r) return JSON.parse(r);
+  } catch {}
+  return DEFAULT_SETTINGS;
+}
+function saveSettingsToStorage(set) {
+  try { localStorage.setItem('qms_settings', JSON.stringify(set)); } catch {}
+}
+function openSettingsModal() {
+  const current = getSettings();
+  document.getElementById('settingsExworks').value = current.exworksTerms;
+  document.getElementById('settingsExstock').value = current.exstockTerms;
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettingsModal() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+function settingsOverlayClick(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettingsModal();
+}
+function saveSettings() {
+  const exworks = document.getElementById('settingsExworks').value;
+  const exstock = document.getElementById('settingsExstock').value;
+  saveSettingsToStorage({ exworksTerms: exworks, exstockTerms: exstock });
+  closeSettingsModal();
+  showToast('Settings saved successfully');
+  if (currentQuoteMeta) renderQuoteMetaDisplay();
+}
+
+/* ── Auto Terms Lookup ── */
+function getTermsText(termsType) {
+  const current = getSettings();
+  if (termsType === 'Exworks') return current.exworksTerms;
+  if (termsType === 'Exstock') return current.exstockTerms;
+  return '';
+}
+
+/* ── Service Provider Dynamic Setup ── */
+function populateProviderDropdown() {
+  const select = document.getElementById('infoProvider');
+  if (!select) return;
+  select.innerHTML = '<option value="">None (No Service Provider)</option>';
+  SERVICE_PROVIDERS.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  });
+}
+
+/* ── Expiration Date Calculation ── */
+function calculateExpiryDate(issueDateStr, option, customDateVal) {
+  if (option === 'custom') return customDateVal;
+  if (!issueDateStr) return '';
+  const d = new Date(issueDateStr);
+  const days = parseInt(option, 10);
+  if (isNaN(days)) return '';
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+function onExpiryOptionChange() {
+  const opt = document.getElementById('infoExpiryOption').value;
+  const customGroup = document.getElementById('infoCustomExpiryGroup');
+  if (opt === 'custom') {
+    customGroup.style.display = 'block';
+    const customInput = document.getElementById('infoExpiryDateCustom');
+    if (!customInput.value) {
+      const issueDateVal = document.getElementById('infoIssueDate').value || new Date().toISOString().split('T')[0];
+      const d = new Date(issueDateVal);
+      d.setDate(d.getDate() + 30);
+      customInput.value = d.toISOString().split('T')[0];
+    }
+  } else {
+    customGroup.style.display = 'none';
+  }
+}
+
+/* ── Quote Info Modal Controls ── */
+function openQuoteInfoModal(isCreateNew = false) {
+  isCreatingNewQuote = isCreateNew;
+  document.getElementById('quoteInfoModalTitle').textContent = isCreateNew ? 'Create New Quotation' : 'Edit Quotation Details';
+  
+  if (isCreateNew) {
+    document.getElementById('infoClient').value = '';
+    document.getElementById('infoQuoteNo').value = generateQuoteNo();
+    document.getElementById('infoRef').value = '';
+    document.getElementById('infoIssueDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('infoExpiryOption').value = '30';
+    document.getElementById('infoExpiryDateCustom').value = '';
+    document.getElementById('infoCurrency').value = 'MUR';
+    document.getElementById('infoTax').value = '15';
+    document.getElementById('infoTermsType').value = 'Exworks';
+    document.getElementById('infoProvider').value = 'bavarian';
+  } else {
+    document.getElementById('infoClient').value = currentQuoteMeta.client || '';
+    document.getElementById('infoQuoteNo').value = currentQuoteMeta.quoteNo || '';
+    document.getElementById('infoRef').value = currentQuoteMeta.reference || '';
+    document.getElementById('infoIssueDate').value = currentQuoteMeta.issueDate || '';
+    document.getElementById('infoExpiryOption').value = currentQuoteMeta.expiryOption || '30';
+    document.getElementById('infoExpiryDateCustom').value = currentQuoteMeta.expiryDate || '';
+    document.getElementById('infoCurrency').value = currentQuoteMeta.currency || 'MUR';
+    document.getElementById('infoTax').value = currentQuoteMeta.tax || '15';
+    document.getElementById('infoTermsType').value = currentQuoteMeta.termsType || 'Exworks';
+    document.getElementById('infoProvider').value = currentQuoteMeta.providerId || '';
+  }
+  
+  onExpiryOptionChange();
+  document.getElementById('quoteInfoOverlay').classList.add('open');
+}
+
+function closeQuoteInfoModal() {
+  document.getElementById('quoteInfoOverlay').classList.remove('open');
+}
+
+function quoteInfoOverlayClick(e) {
+  if (e.target === document.getElementById('quoteInfoOverlay')) closeQuoteInfoModal();
+}
+
+function generateQuoteNo() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const sec = String(now.getSeconds()).padStart(2, '0');
+  return `QT-${year}${month}${day}-${sec}`;
+}
+
+function saveQuoteInfo() {
+  const client = document.getElementById('infoClient').value.trim();
+  const quoteNo = document.getElementById('infoQuoteNo').value.trim();
+  const ref = document.getElementById('infoRef').value.trim();
+  const issueDate = document.getElementById('infoIssueDate').value;
+  const expiryOption = document.getElementById('infoExpiryOption').value;
+  const currency = document.getElementById('infoCurrency').value;
+  const tax = document.getElementById('infoTax').value;
+  const termsType = document.getElementById('infoTermsType').value;
+  const providerId = document.getElementById('infoProvider').value;
+
+  let expiryDate = '';
+  if (expiryOption === 'custom') {
+    expiryDate = document.getElementById('infoExpiryDateCustom').value;
+    if (!expiryDate) {
+       showToast('Please select a custom expiration date', 'error');
+       return;
+    }
+  } else {
+    expiryDate = calculateExpiryDate(issueDate, expiryOption, '');
+  }
+
+  if (!client || !quoteNo || !ref || !issueDate || !expiryOption || !currency || !tax || !termsType) {
+    showToast('Please fill out all required fields marked with *', 'error');
+    return;
+  }
+
+  currentQuoteMeta = {
+    client,
+    issueDate,
+    expiryOption,
+    expiryDate,
+    quoteNo,
+    reference: ref,
+    currency,
+    tax,
+    termsType,
+    providerId
+  };
+
+  if (isCreatingNewQuote) {
+    rows = [];
+    loadedName = '';
+    document.getElementById('multiplierType').value = '2.1';
+    document.getElementById('multiplierCustom').value = '2.1';
+    onMultiplierTypeChange(false);
+    document.getElementById('searchInput').value = '';
+    renderAll();
+  } else {
+    syncLoadedQuote();
+  }
+
+  closeQuoteInfoModal();
+  toggleUIState();
+  recalcAll();
+  showLoadedBadge();
+  autosave();
+
+  showToast(isCreatingNewQuote ? 'Quotation initialized!' : 'Details updated!');
+}
+
+/* ── UI Workspace Router ── */
+function toggleUIState() {
+  const editor = document.getElementById('editorContainer');
+  const splash = document.getElementById('welcomeSplash');
+  const metaCard = document.getElementById('quoteMetaCard');
+  if (currentQuoteMeta && currentQuoteMeta.client) {
+    editor.style.display = 'block';
+    if (splash) splash.style.display = 'none';
+    if (metaCard) {
+      metaCard.style.display = 'block';
+      renderQuoteMetaDisplay();
+    }
+  } else {
+    editor.style.display = 'none';
+    if (splash) splash.style.display = 'flex';
+    if (metaCard) metaCard.style.display = 'none';
+  }
+}
+
+function renderQuoteMetaDisplay() {
+  if (!currentQuoteMeta) return;
+  document.getElementById('metaDispClient').textContent = currentQuoteMeta.client || 'N/A';
+  document.getElementById('metaDispQuoteAndRef').textContent = `${currentQuoteMeta.quoteNo || 'N/A'} / ${currentQuoteMeta.reference || 'N/A'}`;
+  
+  let expiryText = '';
+  if (currentQuoteMeta.expiryOption === 'custom') {
+    expiryText = `${currentQuoteMeta.expiryDate} (Custom)`;
+  } else {
+    expiryText = `${currentQuoteMeta.expiryDate} (${currentQuoteMeta.expiryOption} Days)`;
+  }
+  document.getElementById('metaDispDates').innerHTML = `
+    <strong>Issue:</strong> ${currentQuoteMeta.issueDate || 'N/A'}<br/>
+    <strong>Expiry:</strong> ${expiryText}
+  `;
+  
+  document.getElementById('metaDispDetails').innerHTML = `
+    <strong>Currency:</strong> ${currentQuoteMeta.currency || 'N/A'}<br/>
+    <strong>Tax Code:</strong> ${currentQuoteMeta.tax}%<br/>
+    <strong>Terms Allocation:</strong> ${currentQuoteMeta.termsType || 'N/A'}
+  `;
+  
+  const providerSec = document.getElementById('metaDispProviderSection');
+  const providerDisp = document.getElementById('metaDispProvider');
+  if (currentQuoteMeta.providerId) {
+    const p = SERVICE_PROVIDERS.find(x => x.id === currentQuoteMeta.providerId);
+    if (p) {
+      providerSec.style.display = 'block';
+      providerDisp.innerHTML = `<strong>${p.name}</strong><br/>${p.address}<br/>VAT: ${p.vat} | BRN: ${p.brn} | Tel: ${p.tel} | Fax: ${p.fax}`;
+    } else {
+      providerSec.style.display = 'none';
+    }
+  } else {
+    providerSec.style.display = 'none';
+  }
+  
+  const termsTextDisp = document.getElementById('metaDispTermsText');
+  const activeTermsText = getTermsText(currentQuoteMeta.termsType);
+  termsTextDisp.textContent = activeTermsText || 'No terms configured.';
+}
+
+/* ── Calculations & Formulas ── */
 function recalcAll() {
   const { multiplier, adjRate } = getParams();
-  document.getElementById('adjRateDisplay').innerHTML =
-    fmt(adjRate, 3) + ' <span class="adj-rate-unit">MUR/EUR</span>';
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
 
-  let grandTotal = 0;
+  document.getElementById('adjRateDisplay').innerHTML =
+    fmt(adjRate, 3) + ` <span class="adj-rate-unit">${curSymbol}/EUR</span>`;
+
+  // Dynamically map currency labels
+  document.querySelectorAll('.sell-currency-label').forEach(el => el.textContent = `Unit Sell Price (${curSymbol})`);
+  document.querySelectorAll('.total-currency-label').forEach(el => el.textContent = `Total (${curSymbol})`);
+
+  let subtotal = 0;
   const q = document.getElementById('searchInput').value.toLowerCase().trim();
 
-  // Update desktop table rows
+  // Desktop Table Update
   document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
     const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
     const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
     const visible = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
-    if (visible) grandTotal += total;
+    if (visible) subtotal += total;
     tr.querySelector('.cell-adj-price').textContent = fmt(adjPrice);
     tr.querySelector('.cell-usp').textContent        = fmt(usp);
     tr.querySelector('.cell-total').textContent      = fmt(total);
   });
 
-  // Update mobile card rows
+  // Mobile Cards Update
   document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
     const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
     const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
@@ -663,11 +1117,18 @@ function recalcAll() {
     card.querySelector('.m-total').textContent      = fmt(total);
   });
 
-  document.getElementById('grandTotal').textContent = 'MUR ' + fmt(grandTotal);
+  const taxAmount = subtotal * (taxRate / 100);
+  const finalTotal = subtotal + taxAmount;
+
+  document.getElementById('grandSubtotal').textContent = curSymbol + ' ' + fmt(subtotal);
+  document.getElementById('taxLabel').textContent = `Tax (${taxRate}%)`;
+  document.getElementById('grandTax').textContent = curSymbol + ' ' + fmt(taxAmount);
+  document.getElementById('grandTotal').textContent = curSymbol + ' ' + fmt(finalTotal);
+  
   autosave();
 }
 
-/* ── Row management ── */
+/* ── Row Management ── */
 function addRow() {
   const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0, date: getNow() };
   rows.push(row);
@@ -702,13 +1163,11 @@ function deleteRow(id) {
 function updateRowField(id, field, value) {
   const row = rows.find(r => r.id === id);
   if (row) row[field] = value;
-  // Keep sibling input in sync (desktop ↔ mobile)
   syncSiblingInput(id, field, value);
   recalcAll();
 }
 
 function syncSiblingInput(id, field, value) {
-  // When user edits desktop, update mobile and vice-versa
   const desktopInputs = document.querySelectorAll(`#tableBody tr[data-id="${id}"] input[data-field="${field}"]`);
   const mobileInputs  = document.querySelectorAll(`#mobileRows .m-row[data-id="${id}"] input[data-field="${field}"]`);
   [...desktopInputs, ...mobileInputs].forEach(inp => {
@@ -716,7 +1175,7 @@ function syncSiblingInput(id, field, value) {
   });
 }
 
-/* ── Render helpers ── */
+/* ── DOM Builders ── */
 function renderAll() {
   document.getElementById('tableBody').innerHTML = '';
   document.getElementById('mobileRows').innerHTML = '';
@@ -799,11 +1258,11 @@ function appendMobileCard(row) {
         <span class="m-calc-value m-adj-price">0.00</span>
       </div>
       <div class="m-calc">
-        <span class="m-calc-label">Sell Price (MUR)</span>
+        <span class="m-calc-label">Sell Price</span>
         <span class="m-calc-value m-usp">0.00</span>
       </div>
       <div class="m-calc">
-        <span class="m-calc-label">Total (MUR)</span>
+        <span class="m-calc-label">Total</span>
         <span class="m-calc-value is-total m-total">0.00</span>
       </div>
     </div>`;
@@ -831,7 +1290,7 @@ function updateCount() {
   document.getElementById('itemCount').textContent = rows.length;
 }
 
-/* ── Search / Filter ── */
+/* ── Filter / Search ── */
 function filterRows() {
   const q = document.getElementById('searchInput').value.toLowerCase().trim();
 
@@ -840,7 +1299,7 @@ function filterRows() {
 
   let visible = 0;
 
-  // Desktop
+  // Desktop Filter
   document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
     const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
     const match = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
@@ -848,7 +1307,7 @@ function filterRows() {
     if (match) visible++;
   });
 
-  // Mobile
+  // Mobile Filter
   document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
     const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
     const match = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
@@ -871,46 +1330,34 @@ function filterRows() {
   recalcAll();
 }
 
-/* ── Loaded badge ── */
 function showLoadedBadge() {
   const el = document.getElementById('loadedBadge');
   if (loadedName) { el.textContent = '📄 ' + loadedName; el.style.display = 'block'; }
   else            { el.style.display = 'none'; }
 }
 
-/* ── New Quote ── */
-function newQuote() {
-  const hasContent = rows.length > 0 || loadedName;
-  const start = () => {
-    rows = [];
-    loadedName = '';
-    document.getElementById('multiplierType').value = '2.1';
-    document.getElementById('multiplierCustom').value = '2.1';
-    onMultiplierTypeChange(false);
-    document.getElementById('searchInput').value = '';
-    document.getElementById('saveNameInput').value = '';
-    renderAll();
-    recalcAll();
-    showLoadedBadge();
-    showToast('New quotation started');
-  };
+/* ── Workflow Navigation ── */
+function handleNewQuoteBtnClick() {
+  const hasContent = rows.length > 0 || currentQuoteMeta;
   if (hasContent) {
     showConfirm(
       'Start a new quote?',
       'Any unsaved changes to the current quotation will be lost. Save it first if you want to keep it.',
-      start
+      () => {
+        openQuoteInfoModal(true);
+      }
     );
   } else {
-    start();
+    openQuoteInfoModal(true);
   }
 }
 
-/* ── Modal (Manage Quotations) ── */
+/* ── Manage Quotations Modal Controls ── */
 function openModal()  { document.getElementById('modalOverlay').classList.add('open'); document.getElementById('modalSearch').value = ''; renderQuoteList(); }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 function overlayClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
 
-/* ── Generic Confirm Dialog ── */
+/* ── Confirmation Dialogue Framework ── */
 function showConfirm(title, msg, onConfirm) {
   const overlay  = document.getElementById('confirmOverlay');
   const okBtn    = document.getElementById('confirmOkBtn');
@@ -930,7 +1377,7 @@ function showConfirm(title, msg, onConfirm) {
   cancelBtn.addEventListener('click', onCancel);
 }
 
-/* ── Save / Load / Delete ── */
+/* ── Save, Load & Delete Procedures ── */
 function saveQuote() {
   const name = document.getElementById('saveNameInput').value.trim();
   if (!name) { showToast('Enter a name first', 'error'); return; }
@@ -940,22 +1387,18 @@ function saveQuote() {
     multiplierCustom: document.getElementById('multiplierCustom').value,
     adjuster, rate,
     rows: JSON.parse(JSON.stringify(rows)),
-    lastModified: getNow()
+    lastModified: getNow(),
+    currentQuoteMeta
   };
   saveQuotes(); loadedName = name; showLoadedBadge(); autosave();
   document.getElementById('saveNameInput').value = '';
   renderQuoteList(); 
   showToast('Saved "' + name + '"');
-  
-  // Automatically close modal after a short delay
-  setTimeout(() => {
-    closeModal();
-  }, 1200);
+  setTimeout(() => closeModal(), 1200);
 }
 
 function loadQuote(name) {
   const q = savedQuotes[name]; if (!q) return;
-  // Backward compatibility with quotations saved before the dropdown existed
   if (q.multiplierType != null) {
     document.getElementById('multiplierType').value = q.multiplierType;
     document.getElementById('multiplierCustom').value = q.multiplierCustom ?? q.multiplier ?? 2.1;
@@ -968,9 +1411,33 @@ function loadQuote(name) {
   onMultiplierTypeChange(false);
   document.getElementById('adjuster').value = q.adjuster;
   document.getElementById('rate').value      = q.rate;
-  rows = JSON.parse(JSON.stringify(q.rows)); loadedName = name;
+  rows = JSON.parse(JSON.stringify(q.rows)); 
+  loadedName = name;
   document.getElementById('saveNameInput').value = name;
-  renderAll(); recalcAll(); showLoadedBadge(); closeModal();
+  
+  // Backward compatibility with legacy quotes
+  if (q.currentQuoteMeta) {
+    currentQuoteMeta = q.currentQuoteMeta;
+  } else {
+    currentQuoteMeta = {
+      client: 'Legacy Client',
+      issueDate: new Date().toISOString().split('T')[0],
+      expiryOption: '30',
+      expiryDate: calculateExpiryDate(new Date().toISOString().split('T')[0], '30', ''),
+      quoteNo: name,
+      reference: 'LEGACY-REF',
+      currency: 'MUR',
+      tax: '15',
+      termsType: 'Exworks',
+      providerId: 'bavarian'
+    };
+  }
+  
+  renderAll(); 
+  toggleUIState();
+  recalcAll(); 
+  showLoadedBadge(); 
+  closeModal();
   showToast('Loaded "' + name + '"');
 }
 
@@ -980,13 +1447,13 @@ function deleteQuote(name) {
     `Are you sure you want to delete "${name}"? This cannot be undone.`,
     () => {
       delete savedQuotes[name]; saveQuotes();
-      // If the quotation being deleted is the one currently shown in the
-      // table, clear the table too so both sides stay in sync.
       if (loadedName === name) {
         loadedName = '';
+        currentQuoteMeta = null;
         rows = [];
         document.getElementById('searchInput').value = '';
         renderAll();
+        toggleUIState();
         recalcAll();
         showLoadedBadge();
         autosave();
@@ -1005,7 +1472,6 @@ function renderQuoteList() {
     return;
   }
   
-  // Sort by last modified date (most recent first)
   keys.sort((a, b) => {
     const da = new Date(savedQuotes[a].lastModified || 0);
     const db = new Date(savedQuotes[b].lastModified || 0);
@@ -1028,7 +1494,7 @@ function renderQuoteList() {
   }).join('');
 }
 
-/* ── Print / Export ── */
+/* ── Native Printing & Document Generation ── */
 function printQuote() {
   window.print();
 }
@@ -1037,12 +1503,15 @@ function exportCSV() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
   
   const { multiplier, adjRate } = getParams();
-  const headers = ['Date Added', 'Part Reference', 'Part Name', 'Qty', 'Unit Buy Price (EUR)', 'Adj. Price (EUR)', 'Unit Sell Price (MUR)', 'Total (MUR)'];
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  const headers = ['Date Added', 'Part Reference', 'Part Name', 'Qty', 'Unit Buy Price (EUR)', 'Adj. Price (EUR)', `Unit Sell Price (${curSymbol})`, `Total (${curSymbol})`];
   
   const csvRows = [headers.join(',')];
   
+  let subtotal = 0;
   rows.forEach(row => {
     const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
+    subtotal += total;
     const line = [
       `"${(row.date || '').replace(/"/g, '""')}"`,
       `"${row.ref.replace(/"/g, '""')}"`,
@@ -1055,13 +1524,22 @@ function exportCSV() {
     ];
     csvRows.push(line.join(','));
   });
+
+  const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
+  const taxAmount = subtotal * (taxRate / 100);
+  const finalTotal = subtotal + taxAmount;
+
+  csvRows.push('');
+  csvRows.push(`,,,,,,Subtotal,${subtotal.toFixed(2)}`);
+  csvRows.push(`,,,,,,Tax (${taxRate}%),${taxAmount.toFixed(2)}`);
+  csvRows.push(`,,,,,,Grand Total,${finalTotal.toFixed(2)}`);
   
   const csvString = csvRows.join('\n');
   const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   
-  const filename = (loadedName || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.csv';
+  const filename = (loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.csv';
   
   link.setAttribute('href', url);
   link.setAttribute('download', filename);
@@ -1080,30 +1558,55 @@ function exportPDF() {
   const { multiplier, adjuster, rate, adjRate } = getParams();
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-  const title = loadedName || 'Quotation';
+  const title = loadedName || currentQuoteMeta.quoteNo || 'Quotation';
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
 
+  // Left Section Header
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text('MULTIVAC Spare Parts — Quotation', 14, 16);
 
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
-  doc.text(`Quotation: ${title}`, 14, 23);
-  doc.text(`Generated: ${getNow()}`, 14, 28);
+  doc.text(`Quote No: ${currentQuoteMeta.quoteNo || 'N/A'}`, 14, 22);
+  doc.text(`Reference: ${currentQuoteMeta.reference || 'N/A'}`, 14, 26);
+  doc.text(`Client: ${currentQuoteMeta.client || 'N/A'}`, 14, 30);
+  doc.text(`Issue Date: ${currentQuoteMeta.issueDate || 'N/A'}`, 14, 34);
+  doc.text(`Expiry Date: ${currentQuoteMeta.expiryDate || 'N/A'}`, 14, 38);
+
+  // Optional Right Section Service Provider Address
+  if (currentQuoteMeta.providerId) {
+    const p = SERVICE_PROVIDERS.find(x => x.id === currentQuoteMeta.providerId);
+    if (p) {
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(10);
+      doc.text('Service Provider:', 160, 16);
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8.5);
+      doc.text(p.name, 160, 20);
+      doc.text(p.address, 160, 24);
+      doc.text(`VAT: ${p.vat}   BRN: ${p.brn}`, 160, 28);
+      doc.text(`Tel: ${p.tel}   Fax: ${p.fax}`, 160, 32);
+    }
+  }
+
+  // Price Conversion Rule Legend
+  doc.setFontSize(8);
+  doc.setFont(undefined, 'italic');
   doc.text(
-    `Multiplier: ${multiplier}   Adjuster: ${fmt(adjuster, 1)}   Rate: ${fmt(rate, 2)}   Adjusted Rate: ${fmt(adjRate, 3)} MUR/EUR`,
-    14, 33
+    `Pricing Rules — Multiplier: ${multiplier}  Adjuster: ${fmt(adjuster, 1)}  Rate: ${fmt(rate, 2)}  Adjusted Rate: ${fmt(adjRate, 3)} ${curSymbol}/EUR`,
+    14, 44
   );
 
   const head = [[
     'Date Added', 'Part Ref', 'Part Name', 'Qty',
-    'Unit Buy Price (EUR)', 'Adj. Price (EUR)', 'Unit Sell Price (MUR)', 'Total (MUR)'
+    'Unit Buy Price (EUR)', 'Adj. Price (EUR)', `Unit Sell Price (${curSymbol})`, `Total (${curSymbol})`
   ]];
 
-  let grandTotal = 0;
+  let subtotal = 0;
   const body = rows.map(row => {
     const { adjPrice, usp, total } = calcRow(row, multiplier, adjRate);
-    grandTotal += total;
+    subtotal += total;
     return [
       row.date || 'N/A',
       row.ref || '',
@@ -1118,7 +1621,7 @@ function exportPDF() {
 
   doc.autoTable({
     head, body,
-    startY: 38,
+    startY: 47,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [30, 58, 95], textColor: 255 },
     columnStyles: {
@@ -1127,17 +1630,45 @@ function exportPDF() {
     }
   });
 
-  const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || 38;
-  doc.setFontSize(12);
-  doc.setFont(undefined, 'bold');
-  doc.text(`Grand Total: MUR ${fmt(grandTotal)}`, 14, finalY + 10);
+  const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || 47;
+  
+  const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
+  const taxAmount = subtotal * (taxRate / 100);
+  const finalTotal = subtotal + taxAmount;
 
-  const filename = (loadedName || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
+  // Breakdown Summary block
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Subtotal:`, 210, finalY + 8, { align: 'right' });
+  doc.text(`${curSymbol} ${fmt(subtotal)}`, 280, finalY + 8, { align: 'right' });
+
+  doc.text(`Tax (${taxRate}%):`, 210, finalY + 13, { align: 'right' });
+  doc.text(`${curSymbol} ${fmt(taxAmount)}`, 280, finalY + 13, { align: 'right' });
+
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(10);
+  doc.text(`Grand Total:`, 210, finalY + 19, { align: 'right' });
+  doc.text(`${curSymbol} ${fmt(finalTotal)}`, 280, finalY + 19, { align: 'right' });
+
+  // Exworks/Exstock automatic terms rendering
+  const activeTermsText = getTermsText(currentQuoteMeta.termsType);
+  if (activeTermsText) {
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(9);
+    doc.text(`Terms & Conditions (${currentQuoteMeta.termsType}):`, 14, finalY + 8);
+    
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8);
+    const termsLines = doc.splitTextToSize(activeTermsText, 140);
+    doc.text(termsLines, 14, finalY + 13);
+  }
+
+  const filename = (loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
   doc.save(filename);
   showToast('PDF exported');
 }
 
-/* ── Toast ── */
+/* ── Toast Dialogs ── */
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + type;
