@@ -165,7 +165,8 @@
   col.col-name   { width: auto;  }
   col.col-qty    { width: 60px;  }
   col.col-ubp    { width: 120px; }
-  col.col-adj    { width: 110px; }
+  col.col-adj-zar { width: 110px; }
+  col.col-adj-eur { width: 110px; }
   col.col-usp    { width: 120px; }
   col.col-total  { width: 120px; }
   col.col-total-eur { width: 120px; }
@@ -247,6 +248,9 @@
   [data-currency="ZAR"] col.zar-only { display: table-column !important; }
   [data-currency="ZAR"] div.zar-only { display: flex !important; }
 
+  /* ── Column Visibility Helper Class ── */
+  .opt-hidden { display: none !important; }
+
   /* ── Mobile Rows (< 700px) ── */
   .mobile-rows { display: none; }
 
@@ -292,17 +296,13 @@
     .m-row-nums {
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
+    
     .m-row-calcs {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+      gap: 8px;
       background: var(--table-head); border-radius: 6px; padding: 8px 10px;
       transition: background .3s;
-    }
-    
-    [data-currency="EUR"] .m-row-calcs {
-      grid-template-columns: repeat(4, 1fr) !important;
-    }
-    [data-currency="ZAR"] .m-row-calcs {
-      grid-template-columns: repeat(5, 1fr) !important;
     }
 
     .m-calc { display: flex; flex-direction: column; gap: 2px; }
@@ -397,19 +397,33 @@
     .total-value { color: black; }
     .mobile-rows { display: none !important; }
     .table-wrap { display: block !important; }
+    .opt-hidden { display: none !important; }
 
     body[data-currency="EUR"] .eur-only { display: table-cell !important; }
     body[data-currency="EUR"] col.eur-only { display: table-column !important; }
     body[data-currency="EUR"] div.eur-only { display: flex !important; }
 
     body[data-currency="ZAR"] .eur-only { display: table-cell !important; }
-    body[data-currency="ZAR"] col.eur-only { display: table-column !important; }
-    body[data-currency="ZAR"] div.eur-only { display: flex !important; }
+    body[data-currency="ZAR"] col.zar-only { display: table-column !important; }
+    body[data-currency="ZAR"] div.zar-only { display: flex !important; }
 
     body[data-currency="ZAR"] .zar-only { display: table-cell !important; }
     body[data-currency="ZAR"] col.zar-only { display: table-column !important; }
     body[data-currency="ZAR"] div.zar-only { display: flex !important; }
   }
+
+  /* Add this to your <style> section */
+.btn-column-options {
+    background-color: #f8fafc; /* Change to your desired color */
+    border: 1.5px solid var(--border);
+    color: var(--text);
+}
+
+/* Optional: Add a hover effect */
+.btn-column-options:hover {
+    background-color: #e2e8f0;
+}
+
 </style>
 </head>
 <body>
@@ -426,7 +440,7 @@
     </button>
     <button class="btn btn-outline" onclick="printQuote()">🖨 Print</button>
     <button class="btn btn-outline" onclick="exportCSV()">📊 Export CSV</button>
-    <button class="btn btn-outline" onclick="exportPDF()">📄 Export PDF</button>
+    <button class="btn btn-outline" onclick="openPDFOptionsModal()">📄 PDF Options</button>
     <button class="btn btn-outline" onclick="handleNewQuoteBtnClick()">＋ New Quote</button>
     <button class="btn btn-outline" onclick="openSettingsModal()" title="Templates & Settings">⚙️ Settings</button>
     <button class="btn btn-primary" onclick="openModal()">⊞ Manage Quotations</button>
@@ -534,6 +548,7 @@
         </div>
         <div class="toolbar-right">
           <input class="search-input" type="text" id="searchInput" placeholder="Search part ref or name…" oninput="filterRows()" />
+          <button class="btn btn-column-options"  onclick="openColumnOptionsModal()">⚙️ Column Options</button>
           <button class="btn btn-primary" onclick="addRow()">+ Add Item</button>
         </div>
       </div>
@@ -547,26 +562,28 @@
             <col class="col-name" />
             <col class="col-qty" />
             <col class="col-ubp" />
-            <col class="col-adj" />
+            <col class="col-adj-zar" />
+            <col class="col-adj-eur" />
             <col class="col-usp" />
             <col class="col-total" />
-            <col class="eur-only col-total-eur" style="width: 120px;" />
-            <col class="zar-only col-total-zar" style="width: 120px;" />
+            <col class="col-total-eur" />
+            <col class="col-total-zar" />
             <col class="col-action" />
           </colgroup>
           <thead>
             <tr>
-              <th class="th-left">Date Added</th>
-              <th class="th-left">Part Reference</th>
-              <th class="th-left">Part Name</th>
-              <th class="th-right">Qty</th>
-              <th class="th-right">Unit Buy Price (EUR)</th>
-              <th class="th-right">Adj. Price (EUR)</th>
-              <th class="th-right">Unit Sell Price (MUR)</th>
-              <th class="th-right">Total (MUR)</th>
-              <th class="th-right eur-only th-total-eur">Total (EUR)</th>
-              <th class="th-right zar-only th-total-zar">Total (ZAR)</th>
-              <th class="th-center"></th>
+              <th class="th-left col-date">Date Added</th>
+              <th class="th-left col-ref">Part Reference</th>
+              <th class="th-left col-name">Part Name</th>
+              <th class="th-right col-qty">Qty</th>
+              <th class="th-right col-ubp">Unit Buy Price (EUR)</th>
+              <th class="th-right col-adj-zar">Adj. Price (ZAR)</th>
+              <th class="th-right col-adj-eur">Adj. Price (EUR)</th>
+              <th class="th-right col-usp">Unit Sell Price (MUR)</th>
+              <th class="th-right col-total">Total (MUR)</th>
+              <th class="th-right col-total-eur">Total (EUR)</th>
+              <th class="th-right col-total-zar">Total (ZAR)</th>
+              <th class="th-center col-action"></th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -580,7 +597,7 @@
       <div class="total-bar" style="display: flex; justify-content: flex-end; gap: 40px; flex-wrap: wrap; padding: 16px 20px;">
         
         <!-- MUR SUMMARY CARD (Always Visible) -->
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
+        <div class="summary-mur" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
           <div style="font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); width: 100%; text-align: right; padding-bottom: 4px; margin-bottom: 4px;">MUR SUMMARY</div>
           <div style="display: flex; justify-content: space-between; width: 100%; font-size: 13px; gap: 12px;">
             <span class="total-label">Subtotal</span>
@@ -597,7 +614,7 @@
         </div>
 
         <!-- EUR SUMMARY CARD -->
-        <div class="eur-only summary-eur" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
+        <div class="summary-eur" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
           <div style="font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); width: 100%; text-align: right; padding-bottom: 4px; margin-bottom: 4px;">EUR SUMMARY</div>
           <div style="display: flex; justify-content: space-between; width: 100%; font-size: 13px; gap: 12px;">
             <span class="total-label">Subtotal</span>
@@ -614,7 +631,7 @@
         </div>
 
         <!-- ZAR SUMMARY CARD -->
-        <div class="zar-only summary-zar" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
+        <div class="summary-zar" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
           <div style="font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); width: 100%; text-align: right; padding-bottom: 4px; margin-bottom: 4px;">ZAR SUMMARY</div>
           <div style="display: flex; justify-content: space-between; width: 100%; font-size: 13px; gap: 12px;">
             <span class="total-label">Subtotal</span>
@@ -773,6 +790,144 @@
   </div>
 </div>
 
+<!-- COLUMN OPTIONS MODAL -->
+<div class="overlay" id="columnOptionsOverlay" onclick="columnOptionsOverlayClick(event)">
+  <div class="modal" style="width: min(420px, 100%);">
+    <div class="modal-header">
+      <h3 class="modal-title">Table Column Options</h3>
+      <button class="close-btn" onclick="closeColumnOptionsModal()">×</button>
+    </div>
+    <div class="modal-section" style="display: flex; flex-direction: column; gap: 10px;">
+      <span class="field-label" style="font-weight:700; margin-bottom: 4px;">Select visible elements in application view:</span>
+      
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Table Columns</span>
+        
+        <label id="colOptLabel_adjPriceZar" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_adjPriceZar" checked />
+          Adj. Price (ZAR)
+        </label>
+        <label id="colOptLabel_adjPriceEur" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_adjPriceEur" checked />
+          Adj. Price (EUR)
+        </label>
+        <label id="colOptLabel_unitSellPriceMur" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_unitSellPriceMur" checked />
+          Unit Sell Price (MUR)
+        </label>
+        <label id="colOptLabel_totalMur" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_totalMur" checked />
+          Total (MUR)
+        </label>
+        <label id="colOptLabel_totalEur" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_totalEur" checked />
+          Total (EUR)
+        </label>
+        <label id="colOptLabel_totalZar" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_totalZar" checked />
+          Total (ZAR)
+        </label>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;" />
+        <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Summary Sections</span>
+        
+        <label id="colOptLabel_murSummary" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_murSummary" checked />
+          MUR Summary
+        </label>
+        <label id="colOptLabel_eurSummary" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_eurSummary" checked />
+          EUR Summary
+        </label>
+        <label id="colOptLabel_zarSummary" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_zarSummary" checked />
+          ZAR Summary
+        </label>
+      </div>
+    </div>
+    <div class="modal-section" style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn" style="background:var(--table-head); color:var(--text)" onclick="closeColumnOptionsModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveColumnOptionsFromModal()">Apply Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF OPTIONS MODAL -->
+<div class="overlay" id="pdfOptionsOverlay" onclick="pdfOptionsOverlayClick(event)">
+  <div class="modal" style="width: min(420px, 100%);">
+    <div class="modal-header">
+      <h3 class="modal-title">PDF Export Options</h3>
+      <button class="close-btn" onclick="closePDFOptionsModal()">×</button>
+    </div>
+    <div class="modal-section" style="display: flex; flex-direction: column; gap: 10px;">
+      <span class="field-label" style="font-weight:700; margin-bottom: 4px;">Select visible elements in generated PDF:</span>
+      
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_pricingRules" checked />
+          Pricing Rules
+        </label>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;" />
+        <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Columns</span>
+        
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_dateAdded" checked />
+          Date Added
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_unitBuyPrice" checked />
+          Unit Buy Price
+        </label>
+        <label id="pdfOptLabel_adjPriceZar" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_adjPriceZar" checked />
+          Adj. Price (ZAR)
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_adjPriceEur" checked />
+          Adj. Price (EUR)
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_unitSellPrice" checked />
+          Unit Sell Price
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_totalMur" checked />
+          Total (MUR)
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_totalEur" checked />
+          Total (EUR)
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_totalZar" checked />
+          Total (ZAR)
+        </label>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;" />
+        <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Summaries</span>
+        
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_murSummary" checked />
+          MUR Summary
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_eurSummary" checked />
+          EUR Summary
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_zarSummary" checked />
+          ZAR Summary
+        </label>
+      </div>
+    </div>
+    <div class="modal-section" style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn" style="background:var(--table-head); color:var(--text)" onclick="closePDFOptionsModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="exportPDF()">📄 Generate PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM DIALOG -->
 <div class="overlay" id="confirmOverlay">
   <div class="confirm-modal">
@@ -807,6 +962,18 @@ const DEFAULT_SETTINGS = {
   exworksTerms: "1. Prices are on an Ex-Works basis.\n2. Payment terms: 100% advance payment.\n3. Delivery: Subject to confirmation.",
   exstockTerms: "1. Goods are subject to prior sale (Ex-stock).\n2. Payment terms: COD or immediate bank transfer.\n3. Delivery: Immediate, upon payment confirmation.",
   smiaDiscount: 20
+};
+
+const DEFAULT_COLUMN_OPTIONS = {
+  adjPriceZar: true,
+  adjPriceEur: true,
+  unitSellPriceMur: true,
+  totalMur: true,
+  totalEur: true,
+  totalZar: true,
+  murSummary: true,
+  eurSummary: true,
+  zarSummary: true
 };
 
 /* ── Central Exchange Rate Service (Architecture Module) ── */
@@ -860,8 +1027,12 @@ const ExchangeService = {
       // Total (ZAR) = Adj. Price (ZAR) × Qty
       const totalZAR = finalAdjPriceZAR * qty;
 
+      // Adjusted Price in EUR (equivalent adjusted unit price)
+      const adjPriceEUR = finalAdjPriceZAR * rates.zarToEur;
+
       return {
-        adjPrice: finalAdjPriceZAR,
+        adjPriceZar: finalAdjPriceZAR,
+        adjPriceEur: adjPriceEUR,
         uspMUR,
         totalMUR,
         totalEUR,
@@ -888,7 +1059,8 @@ const ExchangeService = {
       const totalZAR = qty * adjPriceZAR;
 
       return {
-        adjPrice: adjPriceEUR,
+        adjPriceZar: adjPriceZAR,
+        adjPriceEur: adjPriceEUR,
         uspMUR,
         totalMUR,
         totalEUR,
@@ -1045,6 +1217,21 @@ function saveSettings() {
   showToast('Settings saved successfully');
   if (currentQuoteMeta) renderQuoteMetaDisplay();
   recalcAll();
+}
+
+/* ── Column Options Persistence ── */
+function getColumnOptions() {
+  try {
+    const r = localStorage.getItem('qms_column_options');
+    return r ? JSON.parse(r) : DEFAULT_COLUMN_OPTIONS;
+  } catch {
+    return DEFAULT_COLUMN_OPTIONS;
+  }
+}
+function saveColumnOptions(opts) {
+  try {
+    localStorage.setItem('qms_column_options', JSON.stringify(opts));
+  } catch {}
 }
 
 /* ── Auto Terms Lookup ── */
@@ -1271,6 +1458,116 @@ function renderQuoteMetaDisplay() {
   termsTextDisp.textContent = activeTermsText || 'No terms configured.';
 }
 
+/* ── Dynamic On-Screen Visibilities Resolver ── */
+function toggleColumnVisibilityOnScreen(colClass, isVisible) {
+  const elements = document.querySelectorAll(`.${colClass}`);
+  elements.forEach(el => {
+    if (isVisible) {
+      el.classList.remove('opt-hidden');
+    } else {
+      el.classList.add('opt-hidden');
+    }
+  });
+}
+
+function toggleSummaryVisibilityOnScreen(sumClass, isVisible) {
+  const el = document.querySelector(`.${sumClass}`);
+  if (el) {
+    if (isVisible) {
+      el.classList.remove('opt-hidden');
+    } else {
+      el.classList.add('opt-hidden');
+    }
+  }
+}
+
+function resolveOnScreenVisibilities() {
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  const opts = getColumnOptions();
+
+  // Table columns relevance based on currency & column options selection
+  const showAdjZar = (curSymbol === 'ZAR') && opts.adjPriceZar;
+  const showAdjEur = opts.adjPriceEur; // Relevant in all currencies
+  const showUspMur = opts.unitSellPriceMur;
+  const showTotalMur = opts.totalMur;
+  const showTotalEur = ((curSymbol === 'EUR' || curSymbol === 'ZAR') && opts.totalEur);
+  const showTotalZar = ((curSymbol === 'ZAR') && opts.totalZar);
+
+  // Toggle Table Column Elements (colgroup col, th, td)
+  toggleColumnVisibilityOnScreen('col-adj-zar', showAdjZar);
+  toggleColumnVisibilityOnScreen('col-adj-eur', showAdjEur);
+  toggleColumnVisibilityOnScreen('col-usp', showUspMur);
+  toggleColumnVisibilityOnScreen('col-total', showTotalMur);
+  toggleColumnVisibilityOnScreen('col-total-eur', showTotalEur);
+  toggleColumnVisibilityOnScreen('col-total-zar', showTotalZar);
+
+  // Summaries relevance based on currency & column options selection
+  const showSumMur = opts.murSummary;
+  const showSumEur = ((curSymbol === 'EUR' || curSymbol === 'ZAR') && opts.eurSummary);
+  const showSumZar = ((curSymbol === 'ZAR') && opts.zarSummary);
+
+  // Toggle Summary Cards
+  toggleSummaryVisibilityOnScreen('summary-mur', showSumMur);
+  toggleSummaryVisibilityOnScreen('summary-eur', showSumEur);
+  toggleSummaryVisibilityOnScreen('summary-zar', showSumZar);
+}
+
+/* ── Column Options Modal Controls ── */
+function openColumnOptionsModal() {
+  const opts = getColumnOptions();
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  const isZar = (curSymbol === 'ZAR');
+
+  // Check inputs based on stored configurations
+  document.getElementById('colOpt_adjPriceZar').checked = opts.adjPriceZar;
+  document.getElementById('colOpt_adjPriceEur').checked = opts.adjPriceEur;
+  document.getElementById('colOpt_unitSellPriceMur').checked = opts.unitSellPriceMur;
+  document.getElementById('colOpt_totalMur').checked = opts.totalMur;
+  document.getElementById('colOpt_totalEur').checked = opts.totalEur;
+  document.getElementById('colOpt_totalZar').checked = opts.totalZar;
+
+  document.getElementById('colOpt_murSummary').checked = opts.murSummary;
+  document.getElementById('colOpt_eurSummary').checked = opts.eurSummary;
+  document.getElementById('colOpt_zarSummary').checked = opts.zarSummary;
+
+  // Smart hide checkboxes that are not relevant to the current active currency
+  document.getElementById('colOptLabel_adjPriceZar').style.display = isZar ? 'flex' : 'none';
+  document.getElementById('colOptLabel_totalEur').style.display = (curSymbol === 'EUR' || curSymbol === 'ZAR') ? 'flex' : 'none';
+  document.getElementById('colOptLabel_totalZar').style.display = isZar ? 'flex' : 'none';
+  
+  document.getElementById('colOptLabel_eurSummary').style.display = (curSymbol === 'EUR' || curSymbol === 'ZAR') ? 'flex' : 'none';
+  document.getElementById('colOptLabel_zarSummary').style.display = isZar ? 'flex' : 'none';
+
+  document.getElementById('columnOptionsOverlay').classList.add('open');
+}
+
+function closeColumnOptionsModal() {
+  document.getElementById('columnOptionsOverlay').classList.remove('open');
+}
+
+function columnOptionsOverlayClick(e) {
+  if (e.target === document.getElementById('columnOptionsOverlay')) closeColumnOptionsModal();
+}
+
+function saveColumnOptionsFromModal() {
+  const opts = {
+    adjPriceZar: document.getElementById('colOpt_adjPriceZar').checked,
+    adjPriceEur: document.getElementById('colOpt_adjPriceEur').checked,
+    unitSellPriceMur: document.getElementById('colOpt_unitSellPriceMur').checked,
+    totalMur: document.getElementById('colOpt_totalMur').checked,
+    totalEur: document.getElementById('colOpt_totalEur').checked,
+    totalZar: document.getElementById('colOpt_totalZar').checked,
+    murSummary: document.getElementById('colOpt_murSummary').checked,
+    eurSummary: document.getElementById('colOpt_eurSummary').checked,
+    zarSummary: document.getElementById('colOpt_zarSummary').checked
+  };
+
+  saveColumnOptions(opts);
+  resolveOnScreenVisibilities();
+  closeColumnOptionsModal();
+  showToast('Column visibilities updated');
+}
+
 /* ── Calculations & Formulas with Centralized Exchange Modules ── */
 function recalcAll() {
   const { multiplier } = getParams();
@@ -1288,20 +1585,17 @@ function recalcAll() {
     zarToEurGroup.style.display = isZar ? 'flex' : 'none';
   }
 
-  // Update dynamic table column headers [2.1]
-  const ubpHeader = document.querySelector('thead th:nth-child(5)');
-  const adjHeader = document.querySelector('thead th:nth-child(6)');
+  // Update dynamic table column headers dynamically using clean classes
+  const ubpHeader = document.querySelector('thead th.col-ubp');
   if (isZar) {
     if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (ZAR)';
-    if (adjHeader) adjHeader.textContent = 'Adj. Price (ZAR)';
   } else {
     if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (EUR)';
-    if (adjHeader) adjHeader.textContent = 'Adj. Price (EUR)';
   }
 
   // Update dynamic mobile cards labels
   document.querySelectorAll('.m-adj-price-label').forEach(el => {
-    el.textContent = isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)';
+    el.textContent = isZar ? 'Adj. Price (EUR)' : 'Adj. Price (EUR)';
   });
 
   // Update computed adjusted rates [3.4]
@@ -1323,16 +1617,17 @@ function recalcAll() {
   // Desktop Table Update
   document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
     const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
-    const { adjPrice, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     const visible = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
     if (visible) {
       subtotalMUR += totalMUR;
       subtotalEUR += totalEUR;
       subtotalZAR += totalZAR;
     }
-    tr.querySelector('.cell-adj-price').textContent = fmt(adjPrice);
-    tr.querySelector('.cell-usp').textContent        = fmt(uspMUR);
-    tr.querySelector('.cell-total').textContent      = fmt(totalMUR);
+    tr.querySelector('.cell-adj-price-zar').textContent = fmt(adjPriceZar);
+    tr.querySelector('.cell-adj-price-eur').textContent = fmt(adjPriceEur);
+    tr.querySelector('.cell-usp').textContent            = fmt(uspMUR);
+    tr.querySelector('.cell-total').textContent          = fmt(totalMUR);
     
     const eurCell = tr.querySelector('.cell-total-eur');
     if (eurCell) eurCell.textContent = fmt(totalEUR);
@@ -1344,10 +1639,11 @@ function recalcAll() {
   // Mobile Cards Update
   document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
     const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
-    const { adjPrice, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
-    card.querySelector('.m-adj-price').textContent = fmt(adjPrice);
-    card.querySelector('.m-usp').textContent        = fmt(uspMUR);
-    card.querySelector('.m-total').textContent      = fmt(totalMUR);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    card.querySelector('.m-adj-price-zar').textContent = fmt(adjPriceZar);
+    card.querySelector('.m-adj-price-eur').textContent = fmt(adjPriceEur);
+    card.querySelector('.m-usp').textContent            = fmt(uspMUR);
+    card.querySelector('.m-total').textContent          = fmt(totalMUR);
     
     const eurSpan = card.querySelector('.m-total-eur');
     if (eurSpan) eurSpan.textContent = fmt(totalEUR);
@@ -1380,6 +1676,7 @@ function recalcAll() {
   document.getElementById('grandTaxZar').textContent = 'ZAR ' + fmt(taxAmountZAR);
   document.getElementById('grandTotalZar').textContent = 'ZAR ' + fmt(finalTotalZAR);
   
+  resolveOnScreenVisibilities();
   autosave();
 }
 
@@ -1457,10 +1754,8 @@ function initiateNewQuoteWorkspace() {
   document.getElementById('saveNameInput').value = '';
 
   // 3. Resets dynamic header text bindings in table row headers
-  const ubpHeader = document.querySelector('thead th:nth-child(5)');
-  const adjHeader = document.querySelector('thead th:nth-child(6)');
+  const ubpHeader = document.querySelector('thead th.col-ubp');
   if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (EUR)';
-  if (adjHeader) adjHeader.textContent = 'Adj. Price (EUR)';
 
   // 4. Force body wrapper contexts back to base MUR presentation layers [1.4]
   document.body.setAttribute('data-currency', 'MUR');
@@ -1514,29 +1809,30 @@ function appendDesktopRow(row) {
   const tr = document.createElement('tr');
   tr.dataset.id = row.id;
   tr.innerHTML = `
-    <td class="td-date">${row.date || 'N/A'}</td>
-    <td class="td-text">
+    <td class="td-date col-date">${row.date || 'N/A'}</td>
+    <td class="td-text col-ref">
       <input class="cell-input" type="text" data-field="ref" value="${esc(row.ref)}"
         placeholder="e.g. 12345678" oninput="updateRowField('${row.id}','ref',this.value)" />
     </td>
-    <td class="td-text">
+    <td class="td-text col-name">
       <input class="cell-input" type="text" data-field="name" value="${esc(row.name)}"
         placeholder="Part description" oninput="updateRowField('${row.id}','name',this.value)" />
     </td>
-    <td class="td-num">
+    <td class="td-num col-qty">
       <input class="cell-input" type="number" data-field="qty" min="0" value="${row.qty}"
         oninput="updateRowField('${row.id}','qty',this.value)" />
     </td>
-    <td class="td-num">
+    <td class="td-num col-ubp">
       <input class="cell-input" type="number" data-field="ubp" min="0" step="0.01" value="${row.ubp}"
         oninput="updateRowField('${row.id}','ubp',this.value)" />
     </td>
-    <td class="td-calc calc-cell cell-adj-price">0.00</td>
-    <td class="td-calc calc-cell cell-usp">0.00</td>
-    <td class="td-calc total-cell cell-total">0.00</td>
-    <td class="td-calc total-cell cell-total-eur eur-only">0.00</td>
-    <td class="td-calc total-cell cell-total-zar zar-only">0.00</td>
-    <td class="td-act">
+    <td class="td-calc calc-cell col-adj-zar cell-adj-price-zar">0.00</td>
+    <td class="td-calc calc-cell col-adj-eur cell-adj-price-eur">0.00</td>
+    <td class="td-calc calc-cell col-usp cell-usp">0.00</td>
+    <td class="td-calc total-cell col-total cell-total">0.00</td>
+    <td class="td-calc total-cell col-total-eur cell-total-eur">0.00</td>
+    <td class="td-calc total-cell col-total-zar cell-total-zar">0.00</td>
+    <td class="td-act col-action">
       <button class="delete-btn" title="Delete" onclick="deleteRow('${row.id}')">🗑</button>
     </td>`;
   document.getElementById('tableBody').appendChild(tr);
@@ -1580,23 +1876,27 @@ function appendMobileCard(row) {
       </div>
     </div>
     <div class="m-row-calcs">
-      <div class="m-calc">
-        <span class="m-calc-label m-adj-price-label">Adj. Price (EUR)</span>
-        <span class="m-calc-value m-adj-price">0.00</span>
+      <div class="m-calc col-adj-zar">
+        <span class="m-calc-label">Adj. Price (ZAR)</span>
+        <span class="m-calc-value m-adj-price-zar">0.00</span>
       </div>
-      <div class="m-calc">
+      <div class="m-calc col-adj-eur">
+        <span class="m-calc-label m-adj-price-label">Adj. Price (EUR)</span>
+        <span class="m-calc-value m-adj-price-eur">0.00</span>
+      </div>
+      <div class="m-calc col-usp">
         <span class="m-calc-label">Sell Price (MUR)</span>
         <span class="m-calc-value m-usp">0.00</span>
       </div>
-      <div class="m-calc">
+      <div class="m-calc col-total">
         <span class="m-calc-label">Total (MUR)</span>
         <span class="m-calc-value is-total m-total">0.00</span>
       </div>
-      <div class="m-calc eur-only m-calc-eur" style="border-left: 1px solid var(--border); padding-left: 8px;">
+      <div class="m-calc col-total-eur" style="border-left: 1px solid var(--border); padding-left: 8px;">
         <span class="m-calc-label" style="color: var(--blue);">Total (EUR)</span>
         <span class="m-calc-value is-total m-total-eur" style="color: var(--blue);">0.00</span>
       </div>
-      <div class="m-calc zar-only m-calc-zar" style="border-left: 1px solid var(--border); padding-left: 8px;">
+      <div class="m-calc col-total-zar" style="border-left: 1px solid var(--border); padding-left: 8px;">
         <span class="m-calc-label" style="color: var(--green);">Total (ZAR)</span>
         <span class="m-calc-value is-total m-total-zar" style="color: var(--green);">0.00</span>
       </div>
@@ -1616,7 +1916,7 @@ function checkEmpty() {
   const mobileRows = document.getElementById('mobileRows');
   if (!rows.length) {
     const msg = 'No items yet — click <strong>+ Add Item</strong> to begin.';
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${msg}</td></tr>`;
     mobileRows.innerHTML = `<div class="m-empty">${msg}</div>`;
   }
 }
@@ -1654,7 +1954,7 @@ function filterRows() {
     const tbody = document.getElementById('tableBody');
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = `<td colspan="9">${msg}</td>`;
+    tr.innerHTML = `<td colspan="12">${msg}</td>`;
     tbody.appendChild(tr);
     const mobileRows = document.getElementById('mobileRows');
     const div = document.createElement('div');
@@ -1862,9 +2162,10 @@ function exportCSV() {
   const headers = [
     'Date Added', 'Part Reference', 'Part Name', 'Qty',
     isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)',
-    isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)',
-    'Unit Sell Price (MUR)', 'Total (MUR)'
+    isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)'
   ];
+  if (isZar) headers.push('Adj. Price (EUR)');
+  headers.push('Unit Sell Price (MUR)', 'Total (MUR)');
   if (isEur) headers.push('Total (EUR)');
   if (isZar) headers.push('Total (ZAR)');
   
@@ -1876,7 +2177,7 @@ function exportCSV() {
   let subtotalZAR = 0;
 
   rows.forEach(row => {
-    const { adjPrice, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     subtotalMUR += totalMUR;
     subtotalEUR += totalEUR;
     subtotalZAR += totalZAR;
@@ -1886,10 +2187,13 @@ function exportCSV() {
       `"${row.name.replace(/"/g, '""')}"`,
       row.qty,
       row.ubp,
-      adjPrice.toFixed(2),
+      adjPriceZar.toFixed(2)
+    ];
+    if (isZar) line.push(adjPriceEur.toFixed(2));
+    line.push(
       uspMUR.toFixed(2),
       totalMUR.toFixed(2)
-    ];
+    );
     if (isEur) line.push(totalEUR.toFixed(2));
     if (isZar) line.push(totalZAR.toFixed(2));
     csvRows.push(line.join(','));
@@ -1938,6 +2242,32 @@ function exportCSV() {
   showToast('CSV exported');
 }
 
+/* ── PDF Export Options Controls ── */
+function openPDFOptionsModal() {
+  if (!rows.length) { showToast('No items to export', 'error'); return; }
+  
+  // Set defaults smartly based on the active currency of the quotation
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  const isZar = (curSymbol === 'ZAR');
+
+  document.getElementById('pdfOptLabel_adjPriceZar').style.display = isZar ? 'flex' : 'none';
+
+  document.getElementById('pdfOpt_totalEur').checked = (curSymbol === 'EUR' || curSymbol === 'ZAR');
+  document.getElementById('pdfOpt_eurSummary').checked = (curSymbol === 'EUR' || curSymbol === 'ZAR');
+  document.getElementById('pdfOpt_totalZar').checked = (curSymbol === 'ZAR');
+  document.getElementById('pdfOpt_zarSummary').checked = (curSymbol === 'ZAR');
+  
+  document.getElementById('pdfOptionsOverlay').classList.add('open');
+}
+
+function closePDFOptionsModal() {
+  document.getElementById('pdfOptionsOverlay').classList.remove('open');
+}
+
+function pdfOptionsOverlayClick(e) {
+  if (e.target === document.getElementById('pdfOptionsOverlay')) closePDFOptionsModal();
+}
+
 function exportPDF() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
   if (!window.jspdf) { showToast('PDF library failed to load', 'error'); return; }
@@ -1948,10 +2278,9 @@ function exportPDF() {
 
   const title = loadedName || currentQuoteMeta.quoteNo || 'Quotation';
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
-  const isEur = (curSymbol === 'EUR' || curSymbol === 'ZAR');
   const isZar = (curSymbol === 'ZAR');
 
-  // Left Section Header
+  // Left Section Header Info
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text('MULTIVAC Spare Parts — Quotation', 14, 16);
@@ -1964,7 +2293,7 @@ function exportPDF() {
   doc.text(`Issue Date: ${currentQuoteMeta.issueDate || 'N/A'}`, 14, 34);
   doc.text(`Expiry Date: ${currentQuoteMeta.expiryDate || 'N/A'}`, 14, 38);
 
-  // Optional Right Section Service Provider Address
+  // Service Provider Address Block
   if (currentQuoteMeta.providerId) {
     const p = SERVICE_PROVIDERS.find(x => x.id === currentQuoteMeta.providerId);
     if (p) {
@@ -1980,123 +2309,218 @@ function exportPDF() {
     }
   }
 
-  // Price Conversion Rule Legend
-  const rates = ExchangeService.getRates();
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'italic');
-  doc.text(
-    `Pricing Rules — Multiplier: ${multiplier}  Adjuster: ${rates.adjusterPercent}%  Rate: ${fmt(rates.eurToMur, 2)}  Adjusted Rate: ${fmt(rates.adjRate_EUR_MUR, 3)} MUR/EUR`,
-    14, 44
-  );
+  // Get settings from checkboxes
+  const showPricingRules = document.getElementById('pdfOpt_pricingRules').checked;
+  const showDateAdded = document.getElementById('pdfOpt_dateAdded').checked;
+  const showUnitBuyPrice = document.getElementById('pdfOpt_unitBuyPrice').checked;
+  
+  const showAdjPriceZar = document.getElementById('pdfOpt_adjPriceZar').checked;
+  const showAdjPriceEur = document.getElementById('pdfOpt_adjPriceEur').checked;
 
-  const head = [[
-    'Date Added', 'Part Ref', 'Part Name', 'Qty',
-    isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)',
-    isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)',
-    'Unit Sell Price (MUR)', 'Total (MUR)'
-  ]];
-  if (isEur) head[0].push('Total (EUR)');
-  if (isZar) head[0].push('Total (ZAR)');
+  const showUnitSellPrice = document.getElementById('pdfOpt_unitSellPrice').checked;
+  const showTotalMur = document.getElementById('pdfOpt_totalMur').checked;
+  const showTotalEur = document.getElementById('pdfOpt_totalEur').checked;
+  const showTotalZar = document.getElementById('pdfOpt_totalZar').checked;
+
+  const showMurSummary = document.getElementById('pdfOpt_murSummary').checked;
+  const showEurSummary = document.getElementById('pdfOpt_eurSummary').checked;
+  const showZarSummary = document.getElementById('pdfOpt_zarSummary').checked;
+
+  const rates = ExchangeService.getRates();
+
+  // Pricing Rule Legend
+  let startY = 43;
+  if (showPricingRules) {
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'italic');
+    doc.text(
+      `Pricing Rules — Multiplier: ${multiplier}  Adjuster: ${rates.adjusterPercent}%  Rate: ${fmt(rates.eurToMur, 2)}  Adjusted Rate: ${fmt(rates.adjRate_EUR_MUR, 3)} MUR/EUR`,
+      14, 44
+    );
+    startY = 47;
+  }
+
+  // Dynamically compile columns based on parameters [1, 2]
+  const headRow = [];
+  const colIndices = [];
+
+  if (showDateAdded) { headRow.push('Date Added'); colIndices.push('date'); }
+  headRow.push('Part Ref'); colIndices.push('ref');
+  headRow.push('Part Name'); colIndices.push('name');
+  headRow.push('Qty'); colIndices.push('qty');
+
+  if (showUnitBuyPrice) {
+    headRow.push(isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)');
+    colIndices.push('ubp');
+  }
+
+  if (isZar) {
+    if (showAdjPriceZar) {
+      headRow.push('Adj. Price (ZAR)');
+      colIndices.push('adjPriceZar');
+    }
+    if (showAdjPriceEur) {
+      headRow.push('Adj. Price (EUR)');
+      colIndices.push('adjPriceEur');
+    }
+  } else {
+    if (showAdjPriceEur) {
+      headRow.push('Adj. Price (EUR)');
+      colIndices.push('adjPriceEur');
+    }
+  }
+
+  if (showUnitSellPrice) {
+    headRow.push('Unit Sell Price (MUR)');
+    colIndices.push('uspMUR');
+  }
+  if (showTotalMur) {
+    headRow.push('Total (MUR)');
+    colIndices.push('totalMUR');
+  }
+  if (showTotalEur) {
+    headRow.push('Total (EUR)');
+    colIndices.push('totalEUR');
+  }
+  if (showTotalZar) {
+    headRow.push('Total (ZAR)');
+    colIndices.push('totalZAR');
+  }
+
+  const head = [headRow];
 
   let subtotalMUR = 0;
   let subtotalEUR = 0;
   let subtotalZAR = 0;
+
   const body = rows.map(row => {
-    const { adjPrice, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     subtotalMUR += totalMUR;
     subtotalEUR += totalEUR;
     subtotalZAR += totalZAR;
-    const r = [
-      row.date || 'N/A',
-      row.ref || '',
-      row.name || '',
-      row.qty,
-      fmt(row.ubp),
-      fmt(adjPrice),
-      fmt(uspMUR),
-      fmt(totalMUR)
-    ];
-    if (isEur) r.push(fmt(totalEUR));
-    if (isZar) r.push(fmt(totalZAR));
+
+    const r = [];
+    colIndices.forEach(col => {
+      if (col === 'date') r.push(row.date || 'N/A');
+      else if (col === 'ref') r.push(row.ref || '');
+      else if (col === 'name') r.push(row.name || '');
+      else if (col === 'qty') r.push(row.qty);
+      else if (col === 'ubp') r.push(fmt(row.ubp));
+      else if (col === 'adjPriceZar') r.push(fmt(adjPriceZar));
+      else if (col === 'adjPriceEur') r.push(fmt(adjPriceEur));
+      else if (col === 'uspMUR') r.push(fmt(uspMUR));
+      else if (col === 'totalMUR') r.push(fmt(totalMUR));
+      else if (col === 'totalEUR') r.push(fmt(totalEUR));
+      else if (col === 'totalZAR') r.push(fmt(totalZAR));
+    });
     return r;
   });
 
-  const columnStyles = {
-    3: { halign: 'right' }, 4: { halign: 'right' },
-    5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }
-  };
-  if (isEur) columnStyles[8] = { halign: 'right' };
-  if (isZar) columnStyles[9] = { halign: 'right' };
+  // Automatically adjust numeric column alignments dynamically [2]
+  const columnStyles = {};
+  headRow.forEach((colName, index) => {
+    if (['Qty', 'Unit Buy Price (ZAR)', 'Unit Buy Price (EUR)', 'Adj. Price (ZAR)', 'Adj. Price (EUR)', 'Unit Sell Price (MUR)', 'Total (MUR)', 'Total (EUR)', 'Total (ZAR)'].includes(colName)) {
+      columnStyles[index] = { halign: 'right' };
+    } else {
+      columnStyles[index] = { halign: 'left' };
+    }
+  });
 
   doc.autoTable({
     head, body,
-    startY: 47,
+    startY: startY,
     styles: { fontSize: 7.5, cellPadding: 1.5 },
     headStyles: { fillColor: [30, 58, 95], textColor: 255 },
-    columnStyles
+    columnStyles,
+    // Propagate alignment formatting cleanly down to the header row cells
+    didParseCell: function(data) {
+      const colIndex = data.column.index;
+      if (columnStyles[colIndex]) {
+        data.cell.styles.halign = columnStyles[colIndex].halign;
+      }
+    }
   });
 
-  const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || 47;
+  const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || startY;
   
   const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
-  const taxAmountMUR = subtotalMUR * (taxRate / 100);
-  const finalTotalMUR = subtotalMUR + taxAmountMUR;
 
-  // Render MUR Summary Column on PDF
-  doc.setFontSize(8.5);
-  doc.setFont(undefined, 'bold');
-  doc.text('MUR SUMMARY', 280, finalY + 6, { align: 'right' });
-  doc.setFont(undefined, 'normal');
-  doc.text(`Subtotal: MUR ${fmt(subtotalMUR)}`, 280, finalY + 11, { align: 'right' });
-  doc.text(`Tax (${taxRate}%): MUR ${fmt(taxAmountMUR)}`, 280, finalY + 16, { align: 'right' });
-  doc.setFont(undefined, 'bold');
-  doc.text(`Grand Total: MUR ${fmt(finalTotalMUR)}`, 280, finalY + 22, { align: 'right' });
+  // Stacking summaries right-to-left dynamically to avoid empty layout gaps [1, 2]
+  let currentX = 280;
 
-  // Render EUR Summary Column
-  if (isEur) {
+  // MUR Summary
+  if (showMurSummary) {
+    const taxAmountMUR = subtotalMUR * (taxRate / 100);
+    const finalTotalMUR = subtotalMUR + taxAmountMUR;
+
+    doc.setFontSize(8.5);
+    doc.setFont(undefined, 'bold');
+    doc.text('MUR SUMMARY', currentX, finalY + 6, { align: 'right' });
+    doc.setFont(undefined, 'normal');
+    doc.text(`Subtotal: MUR ${fmt(subtotalMUR)}`, currentX, finalY + 11, { align: 'right' });
+    doc.text(`Tax (${taxRate}%): MUR ${fmt(taxAmountMUR)}`, currentX, finalY + 16, { align: 'right' });
+    doc.setFont(undefined, 'bold');
+    doc.text(`Grand Total: MUR ${fmt(finalTotalMUR)}`, currentX, finalY + 22, { align: 'right' });
+
+    currentX -= 55;
+  }
+
+  // EUR Summary
+  if (showEurSummary) {
     const taxAmountEUR = subtotalEUR * (taxRate / 100);
     const finalTotalEUR = subtotalEUR + taxAmountEUR;
 
+    doc.setFontSize(8.5);
     doc.setFont(undefined, 'bold');
-    doc.text('EUR SUMMARY', 225, finalY + 6, { align: 'right' });
+    doc.text('EUR SUMMARY', currentX, finalY + 6, { align: 'right' });
     doc.setFont(undefined, 'normal');
-    doc.text(`Subtotal: EUR ${fmt(subtotalEUR)}`, 225, finalY + 11, { align: 'right' });
-    doc.text(`Tax (${taxRate}%): EUR ${fmt(taxAmountEUR)}`, 225, finalY + 16, { align: 'right' });
+    doc.text(`Subtotal: EUR ${fmt(subtotalEUR)}`, currentX, finalY + 11, { align: 'right' });
+    doc.text(`Tax (${taxRate}%): EUR ${fmt(taxAmountEUR)}`, currentX, finalY + 16, { align: 'right' });
     doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: EUR ${fmt(finalTotalEUR)}`, 225, finalY + 22, { align: 'right' });
+    doc.text(`Grand Total: EUR ${fmt(finalTotalEUR)}`, currentX, finalY + 22, { align: 'right' });
+
+    currentX -= 55;
   }
 
-  // Render ZAR Summary Column on PDF
-  if (isZar) {
+  // ZAR Summary
+  if (showZarSummary) {
     const taxAmountZAR = subtotalZAR * (taxRate / 100);
     const finalTotalZAR = subtotalZAR + taxAmountZAR;
 
+    doc.setFontSize(8.5);
     doc.setFont(undefined, 'bold');
-    doc.text('ZAR SUMMARY', 170, finalY + 6, { align: 'right' });
+    doc.text('ZAR SUMMARY', currentX, finalY + 6, { align: 'right' });
     doc.setFont(undefined, 'normal');
-    doc.text(`Subtotal: ZAR ${fmt(subtotalZAR)}`, 170, finalY + 11, { align: 'right' });
-    doc.text(`Tax (${taxRate}%): ZAR ${fmt(taxAmountZAR)}`, 170, finalY + 16, { align: 'right' });
+    doc.text(`Subtotal: ZAR ${fmt(subtotalZAR)}`, currentX, finalY + 11, { align: 'right' });
+    doc.text(`Tax (${taxRate}%): ZAR ${fmt(taxAmountZAR)}`, currentX, finalY + 16, { align: 'right' });
     doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: ZAR ${fmt(finalTotalZAR)}`, 170, finalY + 22, { align: 'right' });
+    doc.text(`Grand Total: ZAR ${fmt(finalTotalZAR)}`, currentX, finalY + 22, { align: 'right' });
+
+    currentX -= 55;
   }
 
-  // Exworks/Exstock automatic terms rendering (limiting width inside multi-currency system to prevent overlapping blocks)
+  // Exworks/Exstock T&C display (with boundary constraint based on left summaries) [1]
+  // Positioned vertically below the floating grand total summary cards (startY = finalY + 29)
   const activeTermsText = getTermsText(currentQuoteMeta.termsType);
   if (activeTermsText) {
+    const termsStartY = finalY + 29;
+    
     doc.setFont(undefined, 'bold');
     doc.setFontSize(8.5);
-    doc.text(`Terms & Conditions (${currentQuoteMeta.termsType}):`, 14, finalY + 6);
+    doc.text(`Terms & Conditions (${currentQuoteMeta.termsType}):`, 14, termsStartY);
     
     doc.setFont(undefined, 'normal');
     doc.setFontSize(7.5);
-    const termsMaxWidth = isZar ? 100 : 130;
+    const termsMaxWidth = 268; // Spans full landscape width since it is rendered vertically below totals
     const termsLines = doc.splitTextToSize(activeTermsText, termsMaxWidth);
-    doc.text(termsLines, 14, finalY + 11);
+    doc.text(termsLines, 14, termsStartY + 5);
   }
 
   const filename = (loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
   doc.save(filename);
+  
   showToast('PDF exported');
+  closePDFOptionsModal();
 }
 
 /* ── Toast Dialogs ── */
