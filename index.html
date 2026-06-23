@@ -50,6 +50,21 @@
     transition: background .3s, color .3s;
   }
 
+  /* ── Sync Overlay (shown while Firestore initializes) ── */
+  #syncOverlay {
+    position: fixed; inset: 0; background: var(--navy);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; z-index: 9999; color: white;
+  }
+  #syncOverlay h2 { font-size: 18px; font-weight: 700; }
+  #syncOverlay p  { font-size: 13px; color: #93c5fd; }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid rgba(255,255,255,.2);
+    border-top-color: #93c5fd; border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* ── Header ── */
   header {
     background: var(--header-bg);
@@ -68,6 +83,22 @@
   .header-eyebrow { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #93c5fd; margin-bottom: 2px; }
   header h1 { font-size: 18px; font-weight: 700; }
   .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Sync status indicator in header ── */
+  .sync-indicator {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #93c5fd; padding: 4px 8px;
+    border: 1px solid rgba(147,197,253,.3); border-radius: 20px;
+    transition: color .3s;
+  }
+  .sync-indicator.syncing { color: #fbbf24; }
+  .sync-indicator.error   { color: #f87171; }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .sync-indicator.syncing .sync-dot { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
   /* ── Buttons ── */
   .btn {
@@ -235,7 +266,7 @@
 
   /* ── Dynamic Layout Selectors ── */
   .eur-only, .zar-only { display: none !important; }
-  
+
   [data-currency="EUR"] .eur-only { display: table-cell !important; }
   [data-currency="EUR"] col.eur-only { display: table-column !important; }
   [data-currency="EUR"] div.eur-only { display: flex !important; }
@@ -296,7 +327,7 @@
     .m-row-nums {
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
-    
+
     .m-row-calcs {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
@@ -380,7 +411,7 @@
 
   /* ── Print Styles ── */
   @media print {
-    header, .header-actions, .table-toolbar, .td-act, .total-bar button, .theme-toggle, .btn { display: none !important; }
+    header, .header-actions, .table-toolbar, .td-act, .total-bar button, .theme-toggle, .btn, #syncOverlay { display: none !important; }
     body { background: white; color: black; }
     main { padding: 0; margin: 0; max-width: none; }
     .card { box-shadow: none; border: 1px solid #eee; margin-bottom: 20px; }
@@ -398,35 +429,29 @@
     .mobile-rows { display: none !important; }
     .table-wrap { display: block !important; }
     .opt-hidden { display: none !important; }
-
-    body[data-currency="EUR"] .eur-only { display: table-cell !important; }
-    body[data-currency="EUR"] col.eur-only { display: table-column !important; }
-    body[data-currency="EUR"] div.eur-only { display: flex !important; }
-
-    body[data-currency="ZAR"] .eur-only { display: table-cell !important; }
-    body[data-currency="ZAR"] col.zar-only { display: table-column !important; }
-    body[data-currency="ZAR"] div.zar-only { display: flex !important; }
-
-    body[data-currency="ZAR"] .zar-only { display: table-cell !important; }
-    body[data-currency="ZAR"] col.zar-only { display: table-column !important; }
-    body[data-currency="ZAR"] div.zar-only { display: flex !important; }
   }
 
-  /* Add this to your <style> section */
-.btn-column-options {
-    background-color: #f8fafc; /* Change to your desired color */
+  .btn-column-options {
+    background-color: #f8fafc;
     border: 1.5px solid var(--border);
     color: var(--text);
-}
-
-/* Optional: Add a hover effect */
-.btn-column-options:hover {
-    background-color: #e2e8f0;
-}
-
+  }
+  .btn-column-options:hover { background-color: #e2e8f0; }
 </style>
 </head>
 <body>
+
+<!-- SYNC LOADING OVERLAY — shown while Firebase initializes -->
+<!--
+  CHANGE: Replaces the instant synchronous localStorage read on startup.
+  Firestore reads are async, so we show this overlay while the app hydrates
+  from the cloud. It is hidden once all initial reads complete.
+-->
+<div id="syncOverlay">
+  <div class="spinner"></div>
+  <h2>Connecting to Cloud…</h2>
+  <p>Loading your quotations from Firestore</p>
+</div>
 
 <!-- HEADER -->
 <header>
@@ -435,6 +460,11 @@
     <h1>Quotation Preparation</h1>
   </div>
   <div class="header-actions">
+    <!-- CHANGE: Sync status indicator replaces silent localStorage. Shows live cloud sync state. -->
+    <div class="sync-indicator" id="syncIndicator" title="Cloud sync status">
+      <span class="sync-dot"></span>
+      <span id="syncLabel">Synced</span>
+    </div>
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
       <span id="themeIcon">🌙</span>
     </button>
@@ -500,7 +530,7 @@
 
   <!-- EDITOR CONTAINER -->
   <div id="editorContainer" style="display:none">
-    
+
     <!-- PRICING CARD -->
     <div class="card" style="margin-bottom:16px;">
       <div class="card-header"><span class="card-label">Pricing Parameters</span></div>
@@ -548,7 +578,7 @@
         </div>
         <div class="toolbar-right">
           <input class="search-input" type="text" id="searchInput" placeholder="Search part ref or name…" oninput="filterRows()" />
-          <button class="btn btn-column-options"  onclick="openColumnOptionsModal()">⚙️ Column Options</button>
+          <button class="btn btn-column-options" onclick="openColumnOptionsModal()">⚙️ Column Options</button>
           <button class="btn btn-primary" onclick="addRow()">+ Add Item</button>
         </div>
       </div>
@@ -595,7 +625,7 @@
 
       <!-- GRAND TOTAL BREAKDOWNS -->
       <div class="total-bar" style="display: flex; justify-content: flex-end; gap: 40px; flex-wrap: wrap; padding: 16px 20px;">
-        
+
         <!-- MUR SUMMARY CARD (Always Visible) -->
         <div class="summary-mur" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px;">
           <div style="font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); width: 100%; text-align: right; padding-bottom: 4px; margin-bottom: 4px;">MUR SUMMARY</div>
@@ -662,7 +692,7 @@
       <button class="close-btn" onclick="closeQuoteInfoModal()">×</button>
     </div>
     <div class="modal-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-      
+
       <div class="input-group" style="grid-column: span 2;">
         <label class="field-label" style="font-weight:700">Client <span style="color:var(--red)">*</span></label>
         <input class="field-input" type="text" id="infoClient" placeholder="e.g. Acme Corporation" required />
@@ -799,10 +829,10 @@
     </div>
     <div class="modal-section" style="display: flex; flex-direction: column; gap: 10px;">
       <span class="field-label" style="font-weight:700; margin-bottom: 4px;">Select visible elements in application view:</span>
-      
+
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Table Columns</span>
-        
+
         <label id="colOptLabel_adjPriceZar" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="colOpt_adjPriceZar" checked />
           Adj. Price (ZAR)
@@ -827,10 +857,10 @@
           <input type="checkbox" id="colOpt_totalZar" checked />
           Total (ZAR)
         </label>
-        
+
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;" />
         <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Summary Sections</span>
-        
+
         <label id="colOptLabel_murSummary" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="colOpt_murSummary" checked />
           MUR Summary
@@ -861,16 +891,16 @@
     </div>
     <div class="modal-section" style="display: flex; flex-direction: column; gap: 10px;">
       <span class="field-label" style="font-weight:700; margin-bottom: 4px;">Select visible elements in generated PDF:</span>
-      
+
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="pdfOpt_pricingRules" checked />
           Pricing Rules
         </label>
-        
+
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;" />
         <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Columns</span>
-        
+
         <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="pdfOpt_dateAdded" checked />
           Date Added
@@ -903,10 +933,10 @@
           <input type="checkbox" id="pdfOpt_totalZar" checked />
           Total (ZAR)
         </label>
-        
+
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 4px 0;" />
         <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Summaries</span>
-        
+
         <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="pdfOpt_murSummary" checked />
           MUR Summary
@@ -944,8 +974,84 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script>
-/* ── Global Constants ── */
+
+<!--
+  ════════════════════════════════════════════════════════════════════════
+  FIREBASE SDK — loaded as ES modules via dynamic import below.
+  We use the CDN modular SDK (v9+) which is tree-shakeable.
+
+  CHANGE: All Firebase imports live in the <script type="module"> block
+  below. The app.js config pattern from the brief is integrated here
+  directly so the single-file structure is preserved.
+
+  IMPORTANT — FIRESTORE SECURITY RULES:
+  For this app to work without authentication, set your Firestore rules to:
+
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        match /{document=**} {
+          allow read, write: if true;
+        }
+      }
+    }
+
+  For production, restrict to your office IP range or add Firebase Auth.
+  ════════════════════════════════════════════════════════════════════════
+-->
+<script type="module">
+// ── Firebase Imports (CDN modular SDK v12) ──────────────────────────────────
+// CHANGE: replaces all localStorage with Firebase Firestore SDK calls.
+import { initializeApp }        from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  onSnapshot
+} from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+
+// ── Firebase Configuration ──────────────────────────────────────────────────
+// CHANGE: Replace YOUR_API_KEY with your actual API key before deploying.
+const firebaseConfig = {
+  apiKey:            'YOUR_API_KEY',
+  authDomain:        'quotation-generator-37374.firebaseapp.com',
+  projectId:         'quotation-generator-37374',
+  storageBucket:     'quotation-generator-37374.firebasestorage.app',
+  messagingSenderId: '328187409288',
+  appId:             '1:328187409288:web:908aec372137593737403d'
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── Firestore Document References (singleton docs) ──────────────────────────
+// Each of these replaces a single localStorage key.
+//
+// qms_settings      → settings/app_settings
+// qms_column_options & qms_theme → preferences/user_preferences
+// qms_autosave      → autosave/current_session
+// qms_saved_quotes  → quotations/{quoteName}  (one doc per quote)
+
+const REFS = {
+  settings:    () => doc(db, 'settings',     'app_settings'),
+  preferences: () => doc(db, 'preferences',  'user_preferences'),
+  autosave:    () => doc(db, 'autosave',     'current_session'),
+  quotation:   (name) => doc(db, 'quotations', sanitizeDocId(name)),
+  quotations:  () => collection(db, 'quotations')
+};
+
+// ── Sanitize a name to be a valid Firestore document ID ─────────────────────
+// Firestore doc IDs cannot contain '/', cannot be '..', max 1500 bytes.
+// We replace all non-alphanumeric chars (except hyphens/underscores) with '_'.
+function sanitizeDocId(name) {
+  return String(name).replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 200);
+}
+
+// ── Global Constants ────────────────────────────────────────────────────────
 const SERVICE_PROVIDERS = [
   {
     id: 'bavarian',
@@ -976,153 +1082,320 @@ const DEFAULT_COLUMN_OPTIONS = {
   zarSummary: true
 };
 
-/* ── Central Exchange Rate Service (Architecture Module) ── */
+// ── Central Exchange Rate Service ────────────────────────────────────────────
 const ExchangeService = {
   getRates() {
-    const eurToMur = parseFloat(document.getElementById('rate').value) || 0;
+    const eurToMur        = parseFloat(document.getElementById('rate').value) || 0;
     const adjusterPercent = parseFloat(document.getElementById('adjuster').value) || 0;
-    const zarToEur = parseFloat(document.getElementById('zarToEur')?.value) || 0.05;
-
-    // Adjusted Rate (EUR → MUR) with dynamic percentage adder
+    const zarToEur        = parseFloat(document.getElementById('zarToEur')?.value) || 0.05;
     const adjRate_EUR_MUR = eurToMur * (1 + adjusterPercent / 100);
-
-    // Adjusted Rate (ZAR → MUR) calculation: AdjustedRate_EUR_MUR * (ZAR → EUR rate)
     const adjRate_ZAR_MUR = adjRate_EUR_MUR * zarToEur;
-
-    return {
-      eurToMur,
-      adjusterPercent,
-      zarToEur,
-      adjRate_EUR_MUR,
-      adjRate_ZAR_MUR
-    };
+    return { eurToMur, adjusterPercent, zarToEur, adjRate_EUR_MUR, adjRate_ZAR_MUR };
   },
 
   calculateRow(row, multiplier, rates, currency) {
-    const qty = parseFloat(row.qty) || 0;
+    const qty      = parseFloat(row.qty) || 0;
     const inputVal = parseFloat(row.ubp) || 0;
-    
+
     if (currency === 'ZAR') {
-      // ZAR Mode: inputVal is treated as Unit Buy Price (ZAR)
       const adjPriceZAR = inputVal * multiplier;
-      
       let finalAdjPriceZAR = adjPriceZAR;
       const multType = document.getElementById('multiplierType').value;
       if (multType === '2.15') {
-        const currentSettings = getSettings();
-        const discountPercent = parseFloat(currentSettings.smiaDiscount);
-        const validDiscount = isNaN(discountPercent) ? 20 : discountPercent;
-        finalAdjPriceZAR = adjPriceZAR * (1 - validDiscount / 100);
+        const disc = parseFloat(appSettings.smiaDiscount) || 20;
+        finalAdjPriceZAR = adjPriceZAR * (1 - disc / 100);
       }
-
-      // Unit Sell Price (MUR) = Adj. Price (ZAR) × Adjusted Rate (ZAR → MUR)
-      const uspMUR = finalAdjPriceZAR * rates.adjRate_ZAR_MUR;
-
-      // Total (MUR) = Qty × Unit Sell Price (MUR)
-      const totalMUR = qty * uspMUR;
-
-      // Total (EUR) = Qty × Adj. Price (ZAR) × ZAR → EUR Rate (the EUR equivalent per unit multiplied by quantity)
-      const totalEUR = qty * finalAdjPriceZAR * rates.zarToEur;
-
-      // Total (ZAR) = Adj. Price (ZAR) × Qty
-      const totalZAR = finalAdjPriceZAR * qty;
-
-      // Adjusted Price in EUR (equivalent adjusted unit price)
+      const uspMUR    = finalAdjPriceZAR * rates.adjRate_ZAR_MUR;
+      const totalMUR  = qty * uspMUR;
+      const totalEUR  = qty * finalAdjPriceZAR * rates.zarToEur;
+      const totalZAR  = finalAdjPriceZAR * qty;
       const adjPriceEUR = finalAdjPriceZAR * rates.zarToEur;
-
-      return {
-        adjPriceZar: finalAdjPriceZAR,
-        adjPriceEur: adjPriceEUR,
-        uspMUR,
-        totalMUR,
-        totalEUR,
-        totalZAR
-      };
+      return { adjPriceZar: finalAdjPriceZAR, adjPriceEur: adjPriceEUR, uspMUR, totalMUR, totalEUR, totalZAR };
     } else {
-      // Standard EUR/MUR Mode: inputVal is treated as Unit Buy Price (EUR)
       let adjPriceEUR = inputVal * multiplier;
-      const multType = document.getElementById('multiplierType').value;
+      const multType  = document.getElementById('multiplierType').value;
       if (multType === '2.15') {
-        const currentSettings = getSettings();
-        const discountPercent = parseFloat(currentSettings.smiaDiscount);
-        const validDiscount = isNaN(discountPercent) ? 20 : discountPercent;
-        adjPriceEUR = adjPriceEUR * (1 - validDiscount / 100);
+        const disc = parseFloat(appSettings.smiaDiscount) || 20;
+        adjPriceEUR = adjPriceEUR * (1 - disc / 100);
       }
-
-      // Unit Sell Price (MUR) = Adj. Price (EUR) * Adjusted Rate (EUR -> MUR)
-      const uspMUR = adjPriceEUR * rates.adjRate_EUR_MUR;
-
+      const uspMUR   = adjPriceEUR * rates.adjRate_EUR_MUR;
       const totalMUR = qty * uspMUR;
       const totalEUR = qty * adjPriceEUR;
-      
       const adjPriceZAR = rates.zarToEur > 0 ? (adjPriceEUR / rates.zarToEur) : 0;
       const totalZAR = qty * adjPriceZAR;
-
-      return {
-        adjPriceZar: adjPriceZAR,
-        adjPriceEur: adjPriceEUR,
-        uspMUR,
-        totalMUR,
-        totalEUR,
-        totalZAR
-      };
+      return { adjPriceZar: adjPriceZAR, adjPriceEur: adjPriceEUR, uspMUR, totalMUR, totalEUR, totalZAR };
     }
   }
 };
 
-/* ── State ── */
-const STORAGE_KEY = 'qms_autosave';
-const QUOTES_KEY  = 'qms_saved_quotes';
-const THEME_KEY   = 'qms_theme';
-let rows = [], savedQuotes = {}, loadedName = '', toastTimer = null, rowIdCounter = 0;
+// ── In-Memory State ──────────────────────────────────────────────────────────
+// CHANGE: These variables are no longer written to localStorage directly.
+// They are the runtime mirrors of what lives in Firestore.
+let rows           = [];
+let loadedName     = '';
+let toastTimer     = null;
+let rowIdCounter   = 0;
 let currentQuoteMeta = null;
 let isCreatingNewQuote = false;
 
-/* ── Init ── */
-window.addEventListener('DOMContentLoaded', () => {
-  if (!localStorage.getItem('qms_settings')) {
-    localStorage.setItem('qms_settings', JSON.stringify(DEFAULT_SETTINGS));
-  }
+// CHANGE: appSettings and columnOptions are now in-memory caches of
+// Firestore documents. They are populated during init and updated on write.
+let appSettings    = { ...DEFAULT_SETTINGS };
+let columnOptions  = { ...DEFAULT_COLUMN_OPTIONS };
+let currentTheme   = 'light';
 
-  populateProviderDropdown();
+// CHANGE: savedQuotes is now an in-memory mirror kept live by onSnapshot.
+let savedQuotes    = {};
 
-  const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  document.getElementById('themeIcon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-
-  try { const r = localStorage.getItem(QUOTES_KEY); if (r) savedQuotes = JSON.parse(r); } catch {}
-  try {
-    const r = localStorage.getItem(STORAGE_KEY);
-    if (r) {
-      const s = JSON.parse(r);
-      if (s.multiplierType != null) document.getElementById('multiplierType').value = s.multiplierType;
-      if (s.multiplierCustom != null) document.getElementById('multiplierCustom').value = s.multiplierCustom;
-      if (s.adjuster   != null) document.getElementById('adjuster').value   = s.adjuster;
-      if (s.rate       != null) document.getElementById('rate').value        = s.rate;
-      if (s.zarToEur   != null) document.getElementById('zarToEur').value    = s.zarToEur;
-      if (s.rows)       rows       = s.rows;
-      if (s.loadedName) loadedName = s.loadedName;
-      if (s.currentQuoteMeta) currentQuoteMeta = s.currentQuoteMeta;
-    }
-  } catch {}
-  
-  onMultiplierTypeChange(false);
-  renderAll();
-  toggleUIState();
-  recalcAll();
-  showLoadedBadge();
-});
-
-/* ── Theme Toggle ── */
-function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme');
-  const target = current === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', target);
-  localStorage.setItem(THEME_KEY, target);
-  document.getElementById('themeIcon').textContent = target === 'dark' ? '☀️' : '🌙';
+// ── Sync UI Indicator ────────────────────────────────────────────────────────
+// CHANGE: New helper that shows cloud sync status in the header bar,
+// replacing the silent / instant localStorage writes with visual feedback.
+function setSyncStatus(state) {
+  // state: 'synced' | 'syncing' | 'error'
+  const el    = document.getElementById('syncIndicator');
+  const label = document.getElementById('syncLabel');
+  el.className = 'sync-indicator ' + state;
+  label.textContent = state === 'syncing' ? 'Saving…' : state === 'error' ? 'Offline' : 'Synced';
 }
 
-/* ── Helpers ── */
+// ── Debounce utility ─────────────────────────────────────────────────────────
+// CHANGE: Autosave is now debounced so rapid typing doesn't trigger a
+// Firestore write on every keypress (was instant with localStorage.setItem).
+function debounce(fn, delay) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIRESTORE READS
+// CHANGE: Every getItem() is replaced by a getDoc() call that returns a
+// Promise. All callers must be async/await.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// CHANGE: Replaces localStorage.getItem('qms_settings')
+async function loadSettingsFromFirestore() {
+  try {
+    const snap = await getDoc(REFS.settings());
+    if (snap.exists()) {
+      appSettings = { ...DEFAULT_SETTINGS, ...snap.data() };
+    } else {
+      // First run — seed Firestore with defaults.
+      await setDoc(REFS.settings(), DEFAULT_SETTINGS);
+      appSettings = { ...DEFAULT_SETTINGS };
+    }
+  } catch (err) {
+    console.error('loadSettings error:', err);
+    appSettings = { ...DEFAULT_SETTINGS };
+  }
+}
+
+// CHANGE: Replaces localStorage.getItem('qms_column_options') and
+// localStorage.getItem('qms_theme')
+async function loadPreferencesFromFirestore() {
+  try {
+    const snap = await getDoc(REFS.preferences());
+    if (snap.exists()) {
+      const data = snap.data();
+      currentTheme  = data.theme        || 'light';
+      columnOptions = data.columnOptions ? { ...DEFAULT_COLUMN_OPTIONS, ...data.columnOptions } : { ...DEFAULT_COLUMN_OPTIONS };
+    }
+    // If no doc exists, keep in-memory defaults — written on first change.
+  } catch (err) {
+    console.error('loadPreferences error:', err);
+  }
+}
+
+// CHANGE: Replaces localStorage.getItem('qms_autosave')
+async function loadAutosaveFromFirestore() {
+  try {
+    const snap = await getDoc(REFS.autosave());
+    if (!snap.exists()) return;
+    const s = snap.data();
+    if (s.multiplierType != null) document.getElementById('multiplierType').value   = s.multiplierType;
+    if (s.multiplierCustom != null) document.getElementById('multiplierCustom').value = s.multiplierCustom;
+    if (s.adjuster  != null) document.getElementById('adjuster').value   = s.adjuster;
+    if (s.rate      != null) document.getElementById('rate').value        = s.rate;
+    if (s.zarToEur  != null) document.getElementById('zarToEur').value    = s.zarToEur;
+    if (s.rows)          rows             = s.rows;
+    if (s.loadedName)    loadedName       = s.loadedName;
+    if (s.currentQuoteMeta) currentQuoteMeta = s.currentQuoteMeta;
+  } catch (err) {
+    console.error('loadAutosave error:', err);
+  }
+}
+
+// CHANGE: Replaces parsing of localStorage.getItem('qms_saved_quotes').
+// Instead of a bulk fetch, we set up a real-time onSnapshot listener on the
+// quotations collection. This keeps the Manage Quotations list live across
+// multiple browser tabs automatically.
+function attachQuotationsListener() {
+  onSnapshot(REFS.quotations(), (snap) => {
+    savedQuotes = {};
+    snap.forEach(docSnap => {
+      // The doc's stored 'name' field is the canonical display name.
+      // The doc ID is the sanitized version used for Firestore routing.
+      const data = docSnap.data();
+      const displayName = data.name || docSnap.id;
+      savedQuotes[displayName] = data;
+    });
+    // Refresh the quote list if the modal is open.
+    if (document.getElementById('modalOverlay').classList.contains('open')) {
+      renderQuoteList();
+    }
+  }, (err) => {
+    console.error('quotations listener error:', err);
+    setSyncStatus('error');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIRESTORE WRITES
+// CHANGE: Every setItem() is replaced by a setDoc() call.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// CHANGE: Replaces localStorage.setItem('qms_settings', JSON.stringify(...))
+async function saveSettingsToFirestore(settingsObj) {
+  setSyncStatus('syncing');
+  try {
+    await setDoc(REFS.settings(), settingsObj);
+    appSettings = { ...settingsObj };
+    setSyncStatus('synced');
+  } catch (err) {
+    console.error('saveSettings error:', err);
+    setSyncStatus('error');
+    throw err;
+  }
+}
+
+// CHANGE: Replaces two separate localStorage keys ('qms_theme' and
+// 'qms_column_options') with a single merged preferences document.
+// Uses setDoc with merge:true so either field can be updated independently.
+async function savePreferencesToFirestore(patch) {
+  // patch = { theme: '...' } or { columnOptions: {...} } or both
+  setSyncStatus('syncing');
+  try {
+    await setDoc(REFS.preferences(), patch, { merge: true });
+    if (patch.theme)         currentTheme  = patch.theme;
+    if (patch.columnOptions) columnOptions = { ...DEFAULT_COLUMN_OPTIONS, ...patch.columnOptions };
+    setSyncStatus('synced');
+  } catch (err) {
+    console.error('savePreferences error:', err);
+    setSyncStatus('error');
+  }
+}
+
+// CHANGE: Replaces localStorage.setItem('qms_autosave', JSON.stringify(...))
+// Debounced at 500ms so rapid typing doesn't hammer Firestore.
+const autosave = debounce(async function _autosave() {
+  setSyncStatus('syncing');
+  try {
+    await setDoc(REFS.autosave(), {
+      multiplierType:   document.getElementById('multiplierType').value,
+      multiplierCustom: document.getElementById('multiplierCustom').value,
+      adjuster:   document.getElementById('adjuster').value,
+      rate:       document.getElementById('rate').value,
+      zarToEur:   document.getElementById('zarToEur')?.value || '0.05',
+      rows,
+      loadedName,
+      currentQuoteMeta: currentQuoteMeta || null
+    });
+    setSyncStatus('synced');
+  } catch (err) {
+    console.error('autosave error:', err);
+    setSyncStatus('error');
+  }
+}, 500);
+
+// CHANGE: Replaces the mutation of the savedQuotes object + saveQuotes() call.
+// Each named quotation is now its own Firestore document in the 'quotations'
+// collection. The document ID is the sanitized name; the 'name' field stores
+// the original display name for retrieval.
+async function saveQuoteToFirestore(name, payload) {
+  setSyncStatus('syncing');
+  try {
+    await setDoc(REFS.quotation(name), { ...payload, name });
+    setSyncStatus('synced');
+  } catch (err) {
+    console.error('saveQuote error:', err);
+    setSyncStatus('error');
+    throw err;
+  }
+}
+
+// CHANGE: Replaces `delete savedQuotes[name]; saveQuotes();`
+async function deleteQuoteFromFirestore(name) {
+  setSyncStatus('syncing');
+  try {
+    await deleteDoc(REFS.quotation(name));
+    setSyncStatus('synced');
+  } catch (err) {
+    console.error('deleteQuote error:', err);
+    setSyncStatus('error');
+    throw err;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// APPLICATION INIT
+// CHANGE: DOMContentLoaded is now async. It awaits all Firestore reads before
+// rendering the UI, then hides the sync overlay.
+// ══════════════════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // 1. Load all remote data in parallel where safe, sequentially where order matters.
+    //    Settings must be loaded before autosave because calculateRow() uses appSettings.
+    await Promise.all([
+      loadSettingsFromFirestore(),
+      loadPreferencesFromFirestore()
+    ]);
+    await loadAutosaveFromFirestore(); // after settings
+
+    // 2. Apply theme from Firestore.
+    // CHANGE: was `localStorage.getItem(THEME_KEY) || 'light'`
+    applyTheme(currentTheme);
+
+    // 3. Populate provider dropdown (unchanged — static data).
+    populateProviderDropdown();
+
+    // 4. Sync UI inputs from the autosave state.
+    onMultiplierTypeChange(false);
+
+    // 5. Render the table and totals.
+    renderAll();
+    toggleUIState();
+    recalcAll();
+    showLoadedBadge();
+
+    // 6. Attach real-time listener for saved quotations.
+    // CHANGE: replaces static localStorage.getItem('qms_saved_quotes') parse.
+    attachQuotationsListener();
+
+  } catch (err) {
+    console.error('Init failed:', err);
+    setSyncStatus('error');
+    showToast('Could not connect to cloud. Check your connection.', 'error');
+  } finally {
+    // Always hide the loading overlay — if Firestore fails, the app still
+    // works with its in-memory defaults.
+    document.getElementById('syncOverlay').style.display = 'none';
+  }
+});
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeIcon').textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+// CHANGE: toggleTheme now calls savePreferencesToFirestore instead of
+// localStorage.setItem(THEME_KEY, target)
+window.toggleTheme = async function() {
+  const target = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(target);
+  await savePreferencesToFirestore({ theme: target });
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n, d = 2) {
   return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
@@ -1130,119 +1403,86 @@ function getNow() {
   const d = new Date();
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-function onMultiplierTypeChange(recalc = true) {
-  const type = document.getElementById('multiplierType').value;
-  const customGroup = document.getElementById('customMultiplierGroup');
-  customGroup.style.display = (type === 'custom') ? 'flex' : 'none';
-  if (recalc) recalcAll();
+function uid() { return 'r' + (++rowIdCounter) + '_' + Math.random().toString(36).slice(2, 6); }
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+window.onMultiplierTypeChange = function(recalc = true) {
+  const type = document.getElementById('multiplierType').value;
+  document.getElementById('customMultiplierGroup').style.display = (type === 'custom') ? 'flex' : 'none';
+  if (recalc) recalcAll();
+};
+
 function getParams() {
   const type = document.getElementById('multiplierType').value;
-  let m;
-  if (type === 'custom') {
-    m = parseFloat(document.getElementById('multiplierCustom').value) || 0;
-  } else {
-    m = parseFloat(type) || 0;
-  }
+  const m = (type === 'custom')
+    ? parseFloat(document.getElementById('multiplierCustom').value) || 0
+    : parseFloat(type) || 0;
   return { multiplier: m };
 }
-function uid() { return 'r' + (++rowIdCounter) + '_' + Math.random().toString(36).slice(2,6); }
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
 
-/* ── Autosave / Persistence ── */
-function autosave() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      multiplierType:   document.getElementById('multiplierType').value,
-      multiplierCustom: document.getElementById('multiplierCustom').value,
-      adjuster:   document.getElementById('adjuster').value,
-      rate:       document.getElementById('rate').value,
-      zarToEur:   document.getElementById('zarToEur')?.value || '0.05',
-      rows, loadedName,
-      currentQuoteMeta
-    }));
-  } catch {}
-}
-function saveQuotes() {
-  try { localStorage.setItem(QUOTES_KEY, JSON.stringify(savedQuotes)); } catch {}
-}
-
-function syncLoadedQuote() {
-  if (loadedName && savedQuotes[loadedName]) {
-    savedQuotes[loadedName].rows = JSON.parse(JSON.stringify(rows));
-    savedQuotes[loadedName].currentQuoteMeta = JSON.parse(JSON.stringify(currentQuoteMeta));
-    savedQuotes[loadedName].lastModified = getNow();
-    saveQuotes();
-  }
-}
-
-/* ── Settings Templates ── */
+// ── Settings ─────────────────────────────────────────────────────────────────
+// CHANGE: getSettings() no longer reads localStorage.
+// It returns the in-memory appSettings cache, which is hydrated from Firestore
+// on init and kept current after every saveSettings() call.
 function getSettings() {
-  try {
-    const r = localStorage.getItem('qms_settings');
-    if (r) {
-      const parsed = JSON.parse(r);
-      if (parsed.smiaDiscount === undefined) {
-        parsed.smiaDiscount = 20;
-      }
-      return parsed;
-    }
-  } catch {}
-  return DEFAULT_SETTINGS;
+  return appSettings;
 }
-function saveSettingsToStorage(set) {
-  try { localStorage.setItem('qms_settings', JSON.stringify(set)); } catch {}
-}
-function openSettingsModal() {
-  const current = getSettings();
-  document.getElementById('settingsExworks').value = current.exworksTerms;
-  document.getElementById('settingsExstock').value = current.exstockTerms;
-  document.getElementById('settingsSmiaDiscount').value = current.smiaDiscount !== undefined ? current.smiaDiscount : 20;
+
+window.openSettingsModal = function() {
+  document.getElementById('settingsExworks').value     = appSettings.exworksTerms;
+  document.getElementById('settingsExstock').value     = appSettings.exstockTerms;
+  document.getElementById('settingsSmiaDiscount').value = appSettings.smiaDiscount ?? 20;
   document.getElementById('settingsOverlay').classList.add('open');
-}
-function closeSettingsModal() {
+};
+window.closeSettingsModal = function() {
   document.getElementById('settingsOverlay').classList.remove('open');
-}
-function settingsOverlayClick(e) {
+};
+window.settingsOverlayClick = function(e) {
   if (e.target === document.getElementById('settingsOverlay')) closeSettingsModal();
-}
-function saveSettings() {
-  const exworks = document.getElementById('settingsExworks').value;
-  const exstock = document.getElementById('settingsExstock').value;
-  const smiaDiscount = parseFloat(document.getElementById('settingsSmiaDiscount').value) || 0;
-  saveSettingsToStorage({ exworksTerms: exworks, exstockTerms: exstock, smiaDiscount: smiaDiscount });
-  closeSettingsModal();
-  showToast('Settings saved successfully');
-  if (currentQuoteMeta) renderQuoteMetaDisplay();
-  recalcAll();
-}
+};
 
-/* ── Column Options Persistence ── */
-function getColumnOptions() {
+// CHANGE: saveSettings now calls saveSettingsToFirestore instead of
+// localStorage.setItem('qms_settings', JSON.stringify(...))
+window.saveSettings = async function() {
+  const newSettings = {
+    exworksTerms:  document.getElementById('settingsExworks').value,
+    exstockTerms:  document.getElementById('settingsExstock').value,
+    smiaDiscount:  parseFloat(document.getElementById('settingsSmiaDiscount').value) || 0
+  };
   try {
-    const r = localStorage.getItem('qms_column_options');
-    return r ? JSON.parse(r) : DEFAULT_COLUMN_OPTIONS;
+    await saveSettingsToFirestore(newSettings);
+    closeSettingsModal();
+    showToast('Settings saved successfully');
+    if (currentQuoteMeta) renderQuoteMetaDisplay();
+    recalcAll();
   } catch {
-    return DEFAULT_COLUMN_OPTIONS;
+    showToast('Failed to save settings', 'error');
   }
-}
-function saveColumnOptions(opts) {
-  try {
-    localStorage.setItem('qms_column_options', JSON.stringify(opts));
-  } catch {}
+};
+
+// ── Column Options ────────────────────────────────────────────────────────────
+// CHANGE: getColumnOptions() returns the in-memory columnOptions cache
+// instead of parsing localStorage.getItem('qms_column_options').
+function getColumnOptions() {
+  return columnOptions;
 }
 
-/* ── Auto Terms Lookup ── */
+// CHANGE: saveColumnOptions() calls savePreferencesToFirestore instead of
+// localStorage.setItem('qms_column_options', JSON.stringify(opts))
+async function saveColumnOptionsToFirestore(opts) {
+  await savePreferencesToFirestore({ columnOptions: opts });
+}
+
+// ── Auto Terms Lookup ─────────────────────────────────────────────────────────
 function getTermsText(termsType) {
-  const current = getSettings();
-  if (termsType === 'Exworks') return current.exworksTerms;
-  if (termsType === 'Exstock') return current.exstockTerms;
+  if (termsType === 'Exworks') return appSettings.exworksTerms;
+  if (termsType === 'Exstock') return appSettings.exstockTerms;
   return '';
 }
 
-/* ── Service Provider Dynamic Setup ── */
+// ── Service Provider Dynamic Setup ───────────────────────────────────────────
 function populateProviderDropdown() {
   const select = document.getElementById('infoProvider');
   if (!select) return;
@@ -1255,7 +1495,7 @@ function populateProviderDropdown() {
   });
 }
 
-/* ── Expiration Date Calculation ── */
+// ── Expiration Date Calculation ───────────────────────────────────────────────
 function calculateExpiryDate(issueDateStr, option, customDateVal) {
   if (option === 'custom') return customDateVal;
   if (!issueDateStr) return '';
@@ -1266,91 +1506,84 @@ function calculateExpiryDate(issueDateStr, option, customDateVal) {
   return d.toISOString().split('T')[0];
 }
 
-function onExpiryOptionChange() {
+window.onExpiryOptionChange = function() {
   const opt = document.getElementById('infoExpiryOption').value;
   const customGroup = document.getElementById('infoCustomExpiryGroup');
   if (opt === 'custom') {
     customGroup.style.display = 'block';
     const customInput = document.getElementById('infoExpiryDateCustom');
     if (!customInput.value) {
-      const issueDateVal = document.getElementById('infoIssueDate').value || new Date().toISOString().split('T')[0];
-      const d = new Date(issueDateVal);
+      const base = document.getElementById('infoIssueDate').value || new Date().toISOString().split('T')[0];
+      const d = new Date(base);
       d.setDate(d.getDate() + 30);
       customInput.value = d.toISOString().split('T')[0];
     }
   } else {
     customGroup.style.display = 'none';
   }
-}
+};
 
-/* ── Quote Info Modal Controls ── */
-function openQuoteInfoModal(isCreateNew = false) {
+// ── Quote Info Modal ──────────────────────────────────────────────────────────
+window.openQuoteInfoModal = function(isCreateNew = false) {
   isCreatingNewQuote = isCreateNew;
   document.getElementById('quoteInfoModalTitle').textContent = isCreateNew ? 'Create New Quotation' : 'Edit Quotation Details';
-  
   if (isCreateNew) {
-    document.getElementById('infoClient').value = '';
-    document.getElementById('infoQuoteNo').value = generateQuoteNo();
-    document.getElementById('infoRef').value = '';
-    document.getElementById('infoIssueDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('infoClient').value       = '';
+    document.getElementById('infoQuoteNo').value      = generateQuoteNo();
+    document.getElementById('infoRef').value          = '';
+    document.getElementById('infoIssueDate').value    = new Date().toISOString().split('T')[0];
     document.getElementById('infoExpiryOption').value = '30';
     document.getElementById('infoExpiryDateCustom').value = '';
-    document.getElementById('infoCurrency').value = 'MUR';
-    document.getElementById('infoTax').value = '15';
-    document.getElementById('infoTermsType').value = 'Exworks';
-    document.getElementById('infoProvider').value = 'bavarian';
+    document.getElementById('infoCurrency').value     = 'MUR';
+    document.getElementById('infoTax').value          = '15';
+    document.getElementById('infoTermsType').value    = 'Exworks';
+    document.getElementById('infoProvider').value     = 'bavarian';
   } else {
-    document.getElementById('infoClient').value = currentQuoteMeta.client || '';
-    document.getElementById('infoQuoteNo').value = currentQuoteMeta.quoteNo || '';
-    document.getElementById('infoRef').value = currentQuoteMeta.reference || '';
-    document.getElementById('infoIssueDate').value = currentQuoteMeta.issueDate || '';
+    document.getElementById('infoClient').value       = currentQuoteMeta.client || '';
+    document.getElementById('infoQuoteNo').value      = currentQuoteMeta.quoteNo || '';
+    document.getElementById('infoRef').value          = currentQuoteMeta.reference || '';
+    document.getElementById('infoIssueDate').value    = currentQuoteMeta.issueDate || '';
     document.getElementById('infoExpiryOption').value = currentQuoteMeta.expiryOption || '30';
     document.getElementById('infoExpiryDateCustom').value = currentQuoteMeta.expiryDate || '';
-    document.getElementById('infoCurrency').value = currentQuoteMeta.currency || 'MUR';
-    document.getElementById('infoTax').value = currentQuoteMeta.tax || '15';
-    document.getElementById('infoTermsType').value = currentQuoteMeta.termsType || 'Exworks';
-    document.getElementById('infoProvider').value = currentQuoteMeta.providerId || '';
+    document.getElementById('infoCurrency').value     = currentQuoteMeta.currency || 'MUR';
+    document.getElementById('infoTax').value          = currentQuoteMeta.tax || '15';
+    document.getElementById('infoTermsType').value    = currentQuoteMeta.termsType || 'Exworks';
+    document.getElementById('infoProvider').value     = currentQuoteMeta.providerId || '';
   }
-  
   onExpiryOptionChange();
   document.getElementById('quoteInfoOverlay').classList.add('open');
-}
+};
 
-function closeQuoteInfoModal() {
+window.closeQuoteInfoModal = function() {
   document.getElementById('quoteInfoOverlay').classList.remove('open');
-}
+};
 
-function quoteInfoOverlayClick(e) {
+window.quoteInfoOverlayClick = function(e) {
   if (e.target === document.getElementById('quoteInfoOverlay')) closeQuoteInfoModal();
-}
+};
 
 function generateQuoteNo() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const sec = String(now.getSeconds()).padStart(2, '0');
-  return `QT-${year}${month}${day}-${sec}`;
+  return `QT-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getSeconds()).padStart(2,'0')}`;
 }
 
-function saveQuoteInfo() {
-  const client = document.getElementById('infoClient').value.trim();
-  const quoteNo = document.getElementById('infoQuoteNo').value.trim();
-  const ref = document.getElementById('infoRef').value.trim();
-  const issueDate = document.getElementById('infoIssueDate').value;
+// CHANGE: saveQuoteInfo() is now async because syncLoadedQuote() writes to
+// Firestore. It awaits the sync before proceeding.
+window.saveQuoteInfo = async function() {
+  const client      = document.getElementById('infoClient').value.trim();
+  const quoteNo     = document.getElementById('infoQuoteNo').value.trim();
+  const ref         = document.getElementById('infoRef').value.trim();
+  const issueDate   = document.getElementById('infoIssueDate').value;
   const expiryOption = document.getElementById('infoExpiryOption').value;
-  const currency = document.getElementById('infoCurrency').value;
-  const tax = document.getElementById('infoTax').value;
-  const termsType = document.getElementById('infoTermsType').value;
-  const providerId = document.getElementById('infoProvider').value;
+  const currency    = document.getElementById('infoCurrency').value;
+  const tax         = document.getElementById('infoTax').value;
+  const termsType   = document.getElementById('infoTermsType').value;
+  const providerId  = document.getElementById('infoProvider').value;
 
   let expiryDate = '';
   if (expiryOption === 'custom') {
     expiryDate = document.getElementById('infoExpiryDateCustom').value;
-    if (!expiryDate) {
-       showToast('Please select a custom expiration date', 'error');
-       return;
-    }
+    if (!expiryDate) { showToast('Please select a custom expiration date', 'error'); return; }
   } else {
     expiryDate = calculateExpiryDate(issueDate, expiryOption, '');
   }
@@ -1360,32 +1593,22 @@ function saveQuoteInfo() {
     return;
   }
 
-  currentQuoteMeta = {
-    client,
-    issueDate,
-    expiryOption,
-    expiryDate,
-    quoteNo,
-    reference: ref,
-    currency,
-    tax,
-    termsType,
-    providerId
-  };
+  currentQuoteMeta = { client, issueDate, expiryOption, expiryDate, quoteNo, reference: ref, currency, tax, termsType, providerId };
 
   if (isCreatingNewQuote) {
     rows = [];
     loadedName = '';
-    document.getElementById('multiplierType').value = '2.1';
+    document.getElementById('multiplierType').value   = '2.1';
     document.getElementById('multiplierCustom').value = '2.1';
     onMultiplierTypeChange(false);
     document.getElementById('searchInput').value = '';
     renderAll();
   } else {
-    syncLoadedQuote();
+    // CHANGE: syncLoadedQuote is now async — await it.
+    await syncLoadedQuote();
   }
 
-  const clientSanitized = client.replace(/[\\/:*?"<>|]/g, '');
+  const clientSanitized  = client.replace(/[\\/:*?"<>|]/g, '');
   const quoteNoSanitized = quoteNo.replace(/[\\/:*?"<>|]/g, '');
   document.getElementById('saveNameInput').value = `${clientSanitized}_${quoteNoSanitized}`;
 
@@ -1393,53 +1616,40 @@ function saveQuoteInfo() {
   toggleUIState();
   recalcAll();
   showLoadedBadge();
-  autosave();
+  autosave(); // non-blocking, debounced
 
   showToast(isCreatingNewQuote ? 'Quotation initialized!' : 'Details updated!');
-}
+};
 
-/* ── UI Workspace Router ── */
+// ── UI Workspace Router ───────────────────────────────────────────────────────
 function toggleUIState() {
-  const editor = document.getElementById('editorContainer');
-  const splash = document.getElementById('welcomeSplash');
+  const editor   = document.getElementById('editorContainer');
+  const splash   = document.getElementById('welcomeSplash');
   const metaCard = document.getElementById('quoteMetaCard');
   if (currentQuoteMeta && currentQuoteMeta.client) {
-    editor.style.display = 'block';
-    if (splash) splash.style.display = 'none';
-    if (metaCard) {
-      metaCard.style.display = 'block';
-      renderQuoteMetaDisplay();
-    }
+    editor.style.display   = 'block';
+    if (splash)   splash.style.display   = 'none';
+    if (metaCard) { metaCard.style.display = 'block'; renderQuoteMetaDisplay(); }
   } else {
-    editor.style.display = 'none';
-    if (splash) splash.style.display = 'flex';
+    editor.style.display   = 'none';
+    if (splash)   splash.style.display   = 'flex';
     if (metaCard) metaCard.style.display = 'none';
   }
 }
 
 function renderQuoteMetaDisplay() {
   if (!currentQuoteMeta) return;
-  document.getElementById('metaDispClient').textContent = currentQuoteMeta.client || 'N/A';
-  document.getElementById('metaDispQuoteAndRef').textContent = `${currentQuoteMeta.quoteNo || 'N/A'} / ${currentQuoteMeta.reference || 'N/A'}`;
-  
-  let expiryText = '';
-  if (currentQuoteMeta.expiryOption === 'custom') {
-    expiryText = `${currentQuoteMeta.expiryDate} (Custom)`;
-  } else {
-    expiryText = `${currentQuoteMeta.expiryDate} (${currentQuoteMeta.expiryOption} Days)`;
-  }
-  document.getElementById('metaDispDates').innerHTML = `
-    <strong>Issue:</strong> ${currentQuoteMeta.issueDate || 'N/A'}<br/>
-    <strong>Expiry:</strong> ${expiryText}
-  `;
-  
-  document.getElementById('metaDispDetails').innerHTML = `
-    <strong>Currency:</strong> ${currentQuoteMeta.currency || 'N/A'}<br/>
-    <strong>Tax Code:</strong> ${currentQuoteMeta.tax}%<br/>
-    <strong>Terms Allocation:</strong> ${currentQuoteMeta.termsType || 'N/A'}
-  `;
-  
-  const providerSec = document.getElementById('metaDispProviderSection');
+  document.getElementById('metaDispClient').textContent       = currentQuoteMeta.client || 'N/A';
+  document.getElementById('metaDispQuoteAndRef').textContent  = `${currentQuoteMeta.quoteNo || 'N/A'} / ${currentQuoteMeta.reference || 'N/A'}`;
+
+  let expiryText = currentQuoteMeta.expiryOption === 'custom'
+    ? `${currentQuoteMeta.expiryDate} (Custom)`
+    : `${currentQuoteMeta.expiryDate} (${currentQuoteMeta.expiryOption} Days)`;
+
+  document.getElementById('metaDispDates').innerHTML = `<strong>Issue:</strong> ${currentQuoteMeta.issueDate || 'N/A'}<br/><strong>Expiry:</strong> ${expiryText}`;
+  document.getElementById('metaDispDetails').innerHTML = `<strong>Currency:</strong> ${currentQuoteMeta.currency || 'N/A'}<br/><strong>Tax Code:</strong> ${currentQuoteMeta.tax}%<br/><strong>Terms Allocation:</strong> ${currentQuoteMeta.termsType || 'N/A'}`;
+
+  const providerSec  = document.getElementById('metaDispProviderSection');
   const providerDisp = document.getElementById('metaDispProvider');
   if (currentQuoteMeta.providerId) {
     const p = SERVICE_PROVIDERS.find(x => x.id === currentQuoteMeta.providerId);
@@ -1452,236 +1662,177 @@ function renderQuoteMetaDisplay() {
   } else {
     providerSec.style.display = 'none';
   }
-  
-  const termsTextDisp = document.getElementById('metaDispTermsText');
-  const activeTermsText = getTermsText(currentQuoteMeta.termsType);
-  termsTextDisp.textContent = activeTermsText || 'No terms configured.';
+
+  document.getElementById('metaDispTermsText').textContent = getTermsText(currentQuoteMeta.termsType) || 'No terms configured.';
 }
 
-/* ── Dynamic On-Screen Visibilities Resolver ── */
+// ── Column Visibility ─────────────────────────────────────────────────────────
 function toggleColumnVisibilityOnScreen(colClass, isVisible) {
-  const elements = document.querySelectorAll(`.${colClass}`);
-  elements.forEach(el => {
-    if (isVisible) {
-      el.classList.remove('opt-hidden');
-    } else {
-      el.classList.add('opt-hidden');
-    }
+  document.querySelectorAll(`.${colClass}`).forEach(el => {
+    el.classList.toggle('opt-hidden', !isVisible);
   });
 }
 
 function toggleSummaryVisibilityOnScreen(sumClass, isVisible) {
   const el = document.querySelector(`.${sumClass}`);
-  if (el) {
-    if (isVisible) {
-      el.classList.remove('opt-hidden');
-    } else {
-      el.classList.add('opt-hidden');
-    }
-  }
+  if (el) el.classList.toggle('opt-hidden', !isVisible);
 }
 
 function resolveOnScreenVisibilities() {
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
   const opts = getColumnOptions();
+  const isZar = (curSymbol === 'ZAR');
+  const isEurOrZar = (curSymbol === 'EUR' || curSymbol === 'ZAR');
 
-  // Table columns relevance based on currency & column options selection
-  const showAdjZar = (curSymbol === 'ZAR') && opts.adjPriceZar;
-  const showAdjEur = opts.adjPriceEur; // Relevant in all currencies
-  const showUspMur = opts.unitSellPriceMur;
-  const showTotalMur = opts.totalMur;
-  const showTotalEur = ((curSymbol === 'EUR' || curSymbol === 'ZAR') && opts.totalEur);
-  const showTotalZar = ((curSymbol === 'ZAR') && opts.totalZar);
+  toggleColumnVisibilityOnScreen('col-adj-zar', isZar && opts.adjPriceZar);
+  toggleColumnVisibilityOnScreen('col-adj-eur', opts.adjPriceEur);
+  toggleColumnVisibilityOnScreen('col-usp',     opts.unitSellPriceMur);
+  toggleColumnVisibilityOnScreen('col-total',   opts.totalMur);
+  toggleColumnVisibilityOnScreen('col-total-eur', isEurOrZar && opts.totalEur);
+  toggleColumnVisibilityOnScreen('col-total-zar', isZar && opts.totalZar);
 
-  // Toggle Table Column Elements (colgroup col, th, td)
-  toggleColumnVisibilityOnScreen('col-adj-zar', showAdjZar);
-  toggleColumnVisibilityOnScreen('col-adj-eur', showAdjEur);
-  toggleColumnVisibilityOnScreen('col-usp', showUspMur);
-  toggleColumnVisibilityOnScreen('col-total', showTotalMur);
-  toggleColumnVisibilityOnScreen('col-total-eur', showTotalEur);
-  toggleColumnVisibilityOnScreen('col-total-zar', showTotalZar);
-
-  // Summaries relevance based on currency & column options selection
-  const showSumMur = opts.murSummary;
-  const showSumEur = ((curSymbol === 'EUR' || curSymbol === 'ZAR') && opts.eurSummary);
-  const showSumZar = ((curSymbol === 'ZAR') && opts.zarSummary);
-
-  // Toggle Summary Cards
-  toggleSummaryVisibilityOnScreen('summary-mur', showSumMur);
-  toggleSummaryVisibilityOnScreen('summary-eur', showSumEur);
-  toggleSummaryVisibilityOnScreen('summary-zar', showSumZar);
+  toggleSummaryVisibilityOnScreen('summary-mur', opts.murSummary);
+  toggleSummaryVisibilityOnScreen('summary-eur', isEurOrZar && opts.eurSummary);
+  toggleSummaryVisibilityOnScreen('summary-zar', isZar && opts.zarSummary);
 }
 
-/* ── Column Options Modal Controls ── */
-function openColumnOptionsModal() {
+window.openColumnOptionsModal = function() {
   const opts = getColumnOptions();
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
   const isZar = (curSymbol === 'ZAR');
+  const isEurOrZar = (curSymbol === 'EUR' || curSymbol === 'ZAR');
 
-  // Check inputs based on stored configurations
-  document.getElementById('colOpt_adjPriceZar').checked = opts.adjPriceZar;
-  document.getElementById('colOpt_adjPriceEur').checked = opts.adjPriceEur;
+  document.getElementById('colOpt_adjPriceZar').checked    = opts.adjPriceZar;
+  document.getElementById('colOpt_adjPriceEur').checked    = opts.adjPriceEur;
   document.getElementById('colOpt_unitSellPriceMur').checked = opts.unitSellPriceMur;
-  document.getElementById('colOpt_totalMur').checked = opts.totalMur;
-  document.getElementById('colOpt_totalEur').checked = opts.totalEur;
-  document.getElementById('colOpt_totalZar').checked = opts.totalZar;
+  document.getElementById('colOpt_totalMur').checked       = opts.totalMur;
+  document.getElementById('colOpt_totalEur').checked       = opts.totalEur;
+  document.getElementById('colOpt_totalZar').checked       = opts.totalZar;
+  document.getElementById('colOpt_murSummary').checked     = opts.murSummary;
+  document.getElementById('colOpt_eurSummary').checked     = opts.eurSummary;
+  document.getElementById('colOpt_zarSummary').checked     = opts.zarSummary;
 
-  document.getElementById('colOpt_murSummary').checked = opts.murSummary;
-  document.getElementById('colOpt_eurSummary').checked = opts.eurSummary;
-  document.getElementById('colOpt_zarSummary').checked = opts.zarSummary;
-
-  // Smart hide checkboxes that are not relevant to the current active currency
-  document.getElementById('colOptLabel_adjPriceZar').style.display = isZar ? 'flex' : 'none';
-  document.getElementById('colOptLabel_totalEur').style.display = (curSymbol === 'EUR' || curSymbol === 'ZAR') ? 'flex' : 'none';
-  document.getElementById('colOptLabel_totalZar').style.display = isZar ? 'flex' : 'none';
-  
-  document.getElementById('colOptLabel_eurSummary').style.display = (curSymbol === 'EUR' || curSymbol === 'ZAR') ? 'flex' : 'none';
-  document.getElementById('colOptLabel_zarSummary').style.display = isZar ? 'flex' : 'none';
+  document.getElementById('colOptLabel_adjPriceZar').style.display  = isZar      ? 'flex' : 'none';
+  document.getElementById('colOptLabel_totalEur').style.display     = isEurOrZar ? 'flex' : 'none';
+  document.getElementById('colOptLabel_totalZar').style.display     = isZar      ? 'flex' : 'none';
+  document.getElementById('colOptLabel_eurSummary').style.display   = isEurOrZar ? 'flex' : 'none';
+  document.getElementById('colOptLabel_zarSummary').style.display   = isZar      ? 'flex' : 'none';
 
   document.getElementById('columnOptionsOverlay').classList.add('open');
-}
+};
 
-function closeColumnOptionsModal() {
+window.closeColumnOptionsModal = function() {
   document.getElementById('columnOptionsOverlay').classList.remove('open');
-}
+};
 
-function columnOptionsOverlayClick(e) {
+window.columnOptionsOverlayClick = function(e) {
   if (e.target === document.getElementById('columnOptionsOverlay')) closeColumnOptionsModal();
-}
+};
 
-function saveColumnOptionsFromModal() {
+// CHANGE: saveColumnOptionsFromModal() is now async, calling Firestore instead
+// of localStorage.setItem('qms_column_options', ...)
+window.saveColumnOptionsFromModal = async function() {
   const opts = {
-    adjPriceZar: document.getElementById('colOpt_adjPriceZar').checked,
-    adjPriceEur: document.getElementById('colOpt_adjPriceEur').checked,
+    adjPriceZar:     document.getElementById('colOpt_adjPriceZar').checked,
+    adjPriceEur:     document.getElementById('colOpt_adjPriceEur').checked,
     unitSellPriceMur: document.getElementById('colOpt_unitSellPriceMur').checked,
-    totalMur: document.getElementById('colOpt_totalMur').checked,
-    totalEur: document.getElementById('colOpt_totalEur').checked,
-    totalZar: document.getElementById('colOpt_totalZar').checked,
-    murSummary: document.getElementById('colOpt_murSummary').checked,
-    eurSummary: document.getElementById('colOpt_eurSummary').checked,
-    zarSummary: document.getElementById('colOpt_zarSummary').checked
+    totalMur:        document.getElementById('colOpt_totalMur').checked,
+    totalEur:        document.getElementById('colOpt_totalEur').checked,
+    totalZar:        document.getElementById('colOpt_totalZar').checked,
+    murSummary:      document.getElementById('colOpt_murSummary').checked,
+    eurSummary:      document.getElementById('colOpt_eurSummary').checked,
+    zarSummary:      document.getElementById('colOpt_zarSummary').checked
   };
-
-  saveColumnOptions(opts);
+  await saveColumnOptionsToFirestore(opts);
   resolveOnScreenVisibilities();
   closeColumnOptionsModal();
   showToast('Column visibilities updated');
-}
+};
 
-/* ── Calculations & Formulas with Centralized Exchange Modules ── */
+// ── Calculations ──────────────────────────────────────────────────────────────
 function recalcAll() {
   const { multiplier } = getParams();
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
-  const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
-  const isZar = (curSymbol === 'ZAR');
+  const taxRate   = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
+  const isZar     = (curSymbol === 'ZAR');
 
   document.body.setAttribute('data-currency', curSymbol);
-
   const rates = ExchangeService.getRates();
 
-  // Show/Hide ZAR -> EUR Exchange input [3.4]
   const zarToEurGroup = document.getElementById('zarToEurGroup');
-  if (zarToEurGroup) {
-    zarToEurGroup.style.display = isZar ? 'flex' : 'none';
-  }
+  if (zarToEurGroup) zarToEurGroup.style.display = isZar ? 'flex' : 'none';
 
-  // Update dynamic table column headers dynamically using clean classes
   const ubpHeader = document.querySelector('thead th.col-ubp');
-  if (isZar) {
-    if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (ZAR)';
-  } else {
-    if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (EUR)';
-  }
+  if (ubpHeader) ubpHeader.textContent = isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)';
 
-  // Update dynamic mobile cards labels
-  document.querySelectorAll('.m-adj-price-label').forEach(el => {
-    el.textContent = isZar ? 'Adj. Price (EUR)' : 'Adj. Price (EUR)';
-  });
+  document.querySelectorAll('.m-adj-price-label').forEach(el => { el.textContent = 'Adj. Price (EUR)'; });
 
-  // Update computed adjusted rates [3.4]
-  const adjRateLabel = document.getElementById('adjRateLabel');
+  const adjRateLabel   = document.getElementById('adjRateLabel');
   const adjRateDisplay = document.getElementById('adjRateDisplay');
   if (isZar) {
-    adjRateLabel.textContent = 'Adjusted Rate (ZAR → MUR)';
-    adjRateDisplay.innerHTML = fmt(rates.adjRate_ZAR_MUR, 4) + ' <span class="adj-rate-unit">MUR/ZAR</span>';
+    adjRateLabel.textContent  = 'Adjusted Rate (ZAR → MUR)';
+    adjRateDisplay.innerHTML  = fmt(rates.adjRate_ZAR_MUR, 4) + ' <span class="adj-rate-unit">MUR/ZAR</span>';
   } else {
-    adjRateLabel.textContent = 'Adjusted Rate (EUR → MUR)';
-    adjRateDisplay.innerHTML = fmt(rates.adjRate_EUR_MUR, 3) + ' <span class="adj-rate-unit">MUR/EUR</span>';
+    adjRateLabel.textContent  = 'Adjusted Rate (EUR → MUR)';
+    adjRateDisplay.innerHTML  = fmt(rates.adjRate_EUR_MUR, 3) + ' <span class="adj-rate-unit">MUR/EUR</span>';
   }
 
-  let subtotalMUR = 0;
-  let subtotalEUR = 0;
-  let subtotalZAR = 0;
+  let subtotalMUR = 0, subtotalEUR = 0, subtotalZAR = 0;
   const q = document.getElementById('searchInput').value.toLowerCase().trim();
 
-  // Desktop Table Update
   document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
     const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
     const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     const visible = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
-    if (visible) {
-      subtotalMUR += totalMUR;
-      subtotalEUR += totalEUR;
-      subtotalZAR += totalZAR;
-    }
+    if (visible) { subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR; }
     tr.querySelector('.cell-adj-price-zar').textContent = fmt(adjPriceZar);
     tr.querySelector('.cell-adj-price-eur').textContent = fmt(adjPriceEur);
-    tr.querySelector('.cell-usp').textContent            = fmt(uspMUR);
-    tr.querySelector('.cell-total').textContent          = fmt(totalMUR);
-    
-    const eurCell = tr.querySelector('.cell-total-eur');
-    if (eurCell) eurCell.textContent = fmt(totalEUR);
-
-    const zarCell = tr.querySelector('.cell-total-zar');
-    if (zarCell) zarCell.textContent = fmt(totalZAR);
+    tr.querySelector('.cell-usp').textContent           = fmt(uspMUR);
+    tr.querySelector('.cell-total').textContent         = fmt(totalMUR);
+    const eurCell = tr.querySelector('.cell-total-eur'); if (eurCell) eurCell.textContent = fmt(totalEUR);
+    const zarCell = tr.querySelector('.cell-total-zar'); if (zarCell) zarCell.textContent = fmt(totalZAR);
   });
 
-  // Mobile Cards Update
   document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
     const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
     const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     card.querySelector('.m-adj-price-zar').textContent = fmt(adjPriceZar);
     card.querySelector('.m-adj-price-eur').textContent = fmt(adjPriceEur);
-    card.querySelector('.m-usp').textContent            = fmt(uspMUR);
-    card.querySelector('.m-total').textContent          = fmt(totalMUR);
-    
-    const eurSpan = card.querySelector('.m-total-eur');
-    if (eurSpan) eurSpan.textContent = fmt(totalEUR);
-
-    const zarSpan = card.querySelector('.m-total-zar');
-    if (zarSpan) zarSpan.textContent = fmt(totalZAR);
+    card.querySelector('.m-usp').textContent           = fmt(uspMUR);
+    card.querySelector('.m-total').textContent         = fmt(totalMUR);
+    const eurSpan = card.querySelector('.m-total-eur'); if (eurSpan) eurSpan.textContent = fmt(totalEUR);
+    const zarSpan = card.querySelector('.m-total-zar'); if (zarSpan) zarSpan.textContent = fmt(totalZAR);
   });
 
-  // MUR Financial summaries
-  const taxAmountMUR = subtotalMUR * (taxRate / 100);
-  const finalTotalMUR = subtotalMUR + taxAmountMUR;
+  // MUR totals
+  const taxMUR = subtotalMUR * (taxRate / 100);
   document.getElementById('grandSubtotal').textContent = 'MUR ' + fmt(subtotalMUR);
-  document.getElementById('taxLabel').textContent = `VAT (${taxRate}%)`;
-  document.getElementById('grandTax').textContent = 'MUR ' + fmt(taxAmountMUR);
-  document.getElementById('grandTotal').textContent = 'MUR ' + fmt(finalTotalMUR);
+  document.getElementById('taxLabel').textContent      = `VAT (${taxRate}%)`;
+  document.getElementById('grandTax').textContent      = 'MUR ' + fmt(taxMUR);
+  document.getElementById('grandTotal').textContent    = 'MUR ' + fmt(subtotalMUR + taxMUR);
 
-  // EUR Financial summaries
-  const taxAmountEUR = subtotalEUR * (taxRate / 100);
-  const finalTotalEUR = subtotalEUR + taxAmountEUR;
+  // EUR totals
+  const taxEUR = subtotalEUR * (taxRate / 100);
   document.getElementById('grandSubtotalEur').textContent = 'EUR ' + fmt(subtotalEUR);
-  document.getElementById('taxLabelEur').textContent = `VAT (${taxRate}%)`;
-  document.getElementById('grandTaxEur').textContent = 'EUR ' + fmt(taxAmountEUR);
-  document.getElementById('grandTotalEur').textContent = 'EUR ' + fmt(finalTotalEUR);
+  document.getElementById('taxLabelEur').textContent      = `VAT (${taxRate}%)`;
+  document.getElementById('grandTaxEur').textContent      = 'EUR ' + fmt(taxEUR);
+  document.getElementById('grandTotalEur').textContent    = 'EUR ' + fmt(subtotalEUR + taxEUR);
 
-  // ZAR Financial summaries
-  const taxAmountZAR = subtotalZAR * (taxRate / 100);
-  const finalTotalZAR = subtotalZAR + taxAmountZAR;
+  // ZAR totals
+  const taxZAR = subtotalZAR * (taxRate / 100);
   document.getElementById('grandSubtotalZar').textContent = 'ZAR ' + fmt(subtotalZAR);
-  document.getElementById('taxLabelZar').textContent = `VAT (${taxRate}%)`;
-  document.getElementById('grandTaxZar').textContent = 'ZAR ' + fmt(taxAmountZAR);
-  document.getElementById('grandTotalZar').textContent = 'ZAR ' + fmt(finalTotalZAR);
-  
+  document.getElementById('taxLabelZar').textContent      = `VAT (${taxRate}%)`;
+  document.getElementById('grandTaxZar').textContent      = 'ZAR ' + fmt(taxZAR);
+  document.getElementById('grandTotalZar').textContent    = 'ZAR ' + fmt(subtotalZAR + taxZAR);
+
   resolveOnScreenVisibilities();
+
+  // CHANGE: autosave() is debounced and async — it no longer blocks recalcAll.
   autosave();
 }
 
-/* ── Row Management ── */
-function addRow() {
+// ── Row Management ────────────────────────────────────────────────────────────
+window.addRow = function() {
   const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0, date: getNow() };
   rows.push(row);
   appendDesktopRow(row);
@@ -1689,103 +1840,96 @@ function addRow() {
   removeEmptyState();
   recalcAll();
   updateCount();
-}
+};
 
-function deleteRow(id) {
+window.deleteRow = function(id) {
   const row = rows.find(r => r.id === id);
   const label = row && (row.ref || row.name) ? `"${row.ref || row.name}"` : 'this item';
   showConfirm(
     'Delete item?',
     `Are you sure you want to delete ${label}? This cannot be undone.`,
-    () => {
+    async () => {
       rows = rows.filter(r => r.id !== id);
       const tr   = document.querySelector(`#tableBody tr[data-id="${id}"]`);
       const card = document.querySelector(`#mobileRows .m-row[data-id="${id}"]`);
       if (tr)   tr.remove();
       if (card) card.remove();
-      syncLoadedQuote();
+      // CHANGE: syncLoadedQuote is now async.
+      await syncLoadedQuote();
       recalcAll();
       updateCount();
       checkEmpty();
       showToast('Item deleted', 'error');
     }
   );
-}
+};
 
-function updateRowField(id, field, value) {
+window.updateRowField = function(id, field, value) {
   const row = rows.find(r => r.id === id);
   if (row) row[field] = value;
   syncSiblingInput(id, field, value);
   recalcAll();
+};
+
+// ── Sync loaded quote back to Firestore ───────────────────────────────────────
+// CHANGE: Previously this wrote to the in-memory savedQuotes object then called
+// saveQuotes() (localStorage.setItem). Now it writes directly to Firestore.
+async function syncLoadedQuote() {
+  if (!loadedName) return;
+  try {
+    await saveQuoteToFirestore(loadedName, {
+      multiplierType:   document.getElementById('multiplierType').value,
+      multiplierCustom: document.getElementById('multiplierCustom').value,
+      adjuster: document.getElementById('adjuster').value,
+      rate:     document.getElementById('rate').value,
+      zarToEur: document.getElementById('zarToEur')?.value || '0.05',
+      rows: JSON.parse(JSON.stringify(rows)),
+      currentQuoteMeta: JSON.parse(JSON.stringify(currentQuoteMeta)),
+      lastModified: getNow()
+    });
+  } catch (err) {
+    console.error('syncLoadedQuote error:', err);
+  }
 }
 
-/* ── Original “New Quote” Clean System State Reset ── */
-function handleNewQuoteBtnClick() {
+// ── New Quote Workflow ────────────────────────────────────────────────────────
+window.handleNewQuoteBtnClick = function() {
   const hasContent = rows.length > 0 || currentQuoteMeta;
   if (hasContent) {
     showConfirm(
       'Start a new quote?',
       'Any unsaved changes to the current quotation will be lost. Save it first if you want to keep it.',
-      () => {
-        initiateNewQuoteWorkspace();
-      }
+      () => initiateNewQuoteWorkspace()
     );
   } else {
     initiateNewQuoteWorkspace();
   }
-}
+};
 
-function initiateNewQuoteWorkspace() {
-  // 1. Clears current working state completely [1.1]
-  rows = [];
-  loadedName = '';
-  currentQuoteMeta = null;
-  rowIdCounter = 0; // Clears dynamic row generation caches
+window.initiateNewQuoteWorkspace = function() {
+  rows = []; loadedName = ''; currentQuoteMeta = null; rowIdCounter = 0;
 
-  // 2. Resets UI inputs and parameter controls back to default configurations [1.2]
-  document.getElementById('multiplierType').value = '2.1';
+  document.getElementById('multiplierType').value   = '2.1';
   document.getElementById('multiplierCustom').value = '2.1';
-  document.getElementById('adjuster').value = '3';
-  document.getElementById('rate').value = '55.55';
-  if (document.getElementById('zarToEur')) {
-    document.getElementById('zarToEur').value = '0.05';
-  }
-  document.getElementById('searchInput').value = '';
-  document.getElementById('saveNameInput').value = '';
+  document.getElementById('adjuster').value         = '3';
+  document.getElementById('rate').value             = '55.55';
+  if (document.getElementById('zarToEur')) document.getElementById('zarToEur').value = '0.05';
+  document.getElementById('searchInput').value      = '';
+  document.getElementById('saveNameInput').value    = '';
 
-  // 3. Resets dynamic header text bindings in table row headers
   const ubpHeader = document.querySelector('thead th.col-ubp');
   if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (EUR)';
-
-  // 4. Force body wrapper contexts back to base MUR presentation layers [1.4]
   document.body.setAttribute('data-currency', 'MUR');
+  document.querySelectorAll('.m-adj-price-label').forEach(el => { el.textContent = 'Adj. Price (EUR)'; });
 
-  // 5. Clears out dynamic mobile template labels
-  document.querySelectorAll('.m-adj-price-label').forEach(el => {
-    el.textContent = 'Adj. Price (EUR)';
-  });
-
-  // 6. Force drop-downs updates
   onMultiplierTypeChange(false);
-
-  // 7. Full DOM table reset (will render pristine empty state)
   renderAll();
-
-  // 8. Flushes summaries and recalcs financial blocks to 0 [1.1]
   recalcAll();
-
-  // 9. Sync loaded Badges
   showLoadedBadge();
-
-  // 10. Persists empty state so autosave cache does not carry previous workspace data [1.4]
-  autosave();
-
-  // 11. Sync routing (hides editor card, displays splash)
+  autosave(); // clear autosave state in Firestore
   toggleUIState();
-
-  // 12. Direct prompt to start fresh workspace modal configuration [1.3]
   openQuoteInfoModal(true);
-}
+};
 
 function syncSiblingInput(id, field, value) {
   const desktopInputs = document.querySelectorAll(`#tableBody tr[data-id="${id}"] input[data-field="${field}"]`);
@@ -1795,10 +1939,10 @@ function syncSiblingInput(id, field, value) {
   });
 }
 
-/* ── DOM Builders ── */
+// ── DOM Builders ──────────────────────────────────────────────────────────────
 function renderAll() {
-  document.getElementById('tableBody').innerHTML = '';
-  document.getElementById('mobileRows').innerHTML = '';
+  document.getElementById('tableBody').innerHTML   = '';
+  document.getElementById('mobileRows').innerHTML  = '';
   rows.forEach(row => { appendDesktopRow(row); appendMobileCard(row); });
   checkEmpty();
   updateCount();
@@ -1840,11 +1984,11 @@ function appendDesktopRow(row) {
 
 function appendMobileCard(row) {
   const mobileRows = document.getElementById('mobileRows');
-  const emptyEl = mobileRows.querySelector('.m-empty');
+  const emptyEl    = mobileRows.querySelector('.m-empty');
   if (emptyEl) emptyEl.remove();
 
   const card = document.createElement('div');
-  card.className = 'm-row';
+  card.className  = 'm-row';
   card.dataset.id = row.id;
   card.innerHTML = `
     <div class="m-date">${row.date || 'N/A'}</div>
@@ -1916,7 +2060,7 @@ function checkEmpty() {
   const mobileRows = document.getElementById('mobileRows');
   if (!rows.length) {
     const msg = 'No items yet — click <strong>+ Add Item</strong> to begin.';
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${msg}</td></tr>`;
+    tbody.innerHTML      = `<tr class="empty-row"><td colspan="12">${msg}</td></tr>`;
     mobileRows.innerHTML = `<div class="m-empty">${msg}</div>`;
   }
 }
@@ -1925,24 +2069,19 @@ function updateCount() {
   document.getElementById('itemCount').textContent = rows.length;
 }
 
-/* ── Filter / Search ── */
-function filterRows() {
+// ── Filter / Search ───────────────────────────────────────────────────────────
+window.filterRows = function() {
   const q = document.getElementById('searchInput').value.toLowerCase().trim();
-
   if (!rows.length) { checkEmpty(); return; }
   removeEmptyState();
-
   let visible = 0;
 
-  // Desktop Filter
   document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
     const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
     const match = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
     tr.style.display = match ? '' : 'none';
     if (match) visible++;
   });
-
-  // Mobile Filter
   document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
     const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
     const match = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
@@ -1961,9 +2100,8 @@ function filterRows() {
     div.className = 'm-empty'; div.textContent = msg;
     mobileRows.appendChild(div);
   }
-
   recalcAll();
-}
+};
 
 function showLoadedBadge() {
   const el = document.getElementById('loadedBadge');
@@ -1971,54 +2109,65 @@ function showLoadedBadge() {
   else            { el.style.display = 'none'; }
 }
 
-/* ── Save, Load & Delete Procedures ── */
-function saveQuote() {
+// ── Save / Load / Delete Quotations ──────────────────────────────────────────
+
+// CHANGE: saveQuote() is now async. It calls saveQuoteToFirestore() instead of
+// mutating localStorage. The in-memory savedQuotes is kept live by onSnapshot.
+window.saveQuote = async function() {
   const name = document.getElementById('saveNameInput').value.trim();
   if (!name) { showToast('Enter a name first', 'error'); return; }
-  const { multiplier } = getParams();
-  const adjuster = document.getElementById('adjuster').value;
-  const rate = document.getElementById('rate').value;
-  savedQuotes[name] = {
+
+  const payload = {
     multiplierType:   document.getElementById('multiplierType').value,
     multiplierCustom: document.getElementById('multiplierCustom').value,
-    adjuster, rate,
+    adjuster: document.getElementById('adjuster').value,
+    rate:     document.getElementById('rate').value,
     zarToEur: document.getElementById('zarToEur')?.value || '0.05',
     rows: JSON.parse(JSON.stringify(rows)),
     lastModified: getNow(),
     currentQuoteMeta
   };
-  saveQuotes(); loadedName = name; showLoadedBadge(); autosave();
-  document.getElementById('saveNameInput').value = '';
-  renderQuoteList(); 
-  showToast('Saved "' + name + '"');
-  setTimeout(() => closeModal(), 1200);
-}
 
-function loadQuote(name) {
+  try {
+    await saveQuoteToFirestore(name, payload);
+    loadedName = name;
+    showLoadedBadge();
+    autosave();
+    document.getElementById('saveNameInput').value = '';
+    // renderQuoteList() will fire automatically via the onSnapshot listener.
+    showToast('Saved "' + name + '"');
+    setTimeout(() => closeModal(), 1200);
+  } catch {
+    showToast('Failed to save quotation', 'error');
+  }
+};
+
+// CHANGE: loadQuote() reads from the in-memory savedQuotes object (which is
+// kept live by onSnapshot) — no Firestore read needed at load time.
+window.loadQuote = function(name) {
   const q = savedQuotes[name]; if (!q) return;
+
   if (q.multiplierType != null) {
-    document.getElementById('multiplierType').value = q.multiplierType;
+    document.getElementById('multiplierType').value   = q.multiplierType;
     document.getElementById('multiplierCustom').value = q.multiplierCustom ?? q.multiplier ?? 2.1;
   } else if (q.multiplier != null) {
     const knownValues = ['2.1', '2.15', '1.3'];
     const asStr = String(q.multiplier);
-    document.getElementById('multiplierType').value = knownValues.includes(asStr) ? asStr : 'custom';
+    document.getElementById('multiplierType').value   = knownValues.includes(asStr) ? asStr : 'custom';
     document.getElementById('multiplierCustom').value = q.multiplier;
   }
   onMultiplierTypeChange(false);
   document.getElementById('adjuster').value = q.adjuster;
-  document.getElementById('rate').value      = q.rate;
-  document.getElementById('zarToEur').value  = q.zarToEur ?? '0.05';
-  rows = JSON.parse(JSON.stringify(q.rows)); 
+  document.getElementById('rate').value     = q.rate;
+  document.getElementById('zarToEur').value = q.zarToEur ?? '0.05';
+  rows = JSON.parse(JSON.stringify(q.rows));
   loadedName = name;
   document.getElementById('saveNameInput').value = name;
-  
+
   if (q.currentQuoteMeta) {
     currentQuoteMeta = q.currentQuoteMeta;
-    // Fallback handling for legacy USD quotations [2]
-    if (currentQuoteMeta.currency === 'USD') {
-      currentQuoteMeta.currency = 'ZAR';
-    }
+    // Legacy USD → ZAR migration
+    if (currentQuoteMeta.currency === 'USD') currentQuoteMeta.currency = 'ZAR';
   } else {
     currentQuoteMeta = {
       client: 'Legacy Client',
@@ -2033,46 +2182,50 @@ function loadQuote(name) {
       providerId: 'bavarian'
     };
   }
-  
-  renderAll(); 
+
+  renderAll();
   toggleUIState();
-  recalcAll(); 
-  showLoadedBadge(); 
+  recalcAll();
+  showLoadedBadge();
   closeModal();
   showToast('Loaded "' + name + '"');
-}
+};
 
-function deleteQuote(name) {
+// CHANGE: deleteQuote() now calls deleteQuoteFromFirestore() instead of
+// `delete savedQuotes[name]; saveQuotes()`.
+window.deleteQuote = function(name) {
   showConfirm(
     'Delete quotation?',
     `Are you sure you want to delete "${name}"? This cannot be undone.`,
-    () => {
-      delete savedQuotes[name]; saveQuotes();
-      if (loadedName === name) {
-        loadedName = '';
-        currentQuoteMeta = null;
-        rows = [];
-        document.getElementById('searchInput').value = '';
-        renderAll();
-        toggleUIState();
-        recalcAll();
-        showLoadedBadge();
-        autosave();
+    async () => {
+      try {
+        await deleteQuoteFromFirestore(name);
+        if (loadedName === name) {
+          loadedName = ''; currentQuoteMeta = null; rows = [];
+          document.getElementById('searchInput').value = '';
+          renderAll(); toggleUIState(); recalcAll(); showLoadedBadge(); autosave();
+        }
+        // renderQuoteList() fires automatically via onSnapshot.
+        showToast('Deleted "' + name + '"', 'error');
+      } catch {
+        showToast('Failed to delete quotation', 'error');
       }
-      renderQuoteList(); showToast('Deleted "' + name + '"', 'error');
     }
   );
-}
+};
 
-function renderQuoteList() {
+// CHANGE: renderQuoteList() now reads from the in-memory savedQuotes object
+// (kept live by onSnapshot) instead of localStorage.
+window.renderQuoteList = function() {
   const q    = document.getElementById('modalSearch').value.toLowerCase().trim();
   const el   = document.getElementById('quoteList');
   const keys = Object.keys(savedQuotes).filter(k => !q || k.toLowerCase().includes(q));
+
   if (!keys.length) {
     el.innerHTML = `<div class="no-quotes">${q ? 'No matches found.' : 'No saved quotations yet.'}</div>`;
     return;
   }
-  
+
   keys.sort((a, b) => {
     const da = new Date(savedQuotes[a].lastModified || 0);
     const db = new Date(savedQuotes[b].lastModified || 0);
@@ -2093,37 +2246,35 @@ function renderQuoteList() {
         </div>
       </div>`;
   }).join('');
-}
+};
 
-/* ── Manage Quotations Modal Controls ── */
-function openModal() {
-  document.getElementById('saveNameInput').value = loadedName || (currentQuoteMeta ? `${(currentQuoteMeta.client||'').replace(/[\\/:*?"<>|]/g,'')}_${(currentQuoteMeta.quoteNo||'').replace(/[\\/:*?"<>|]/g,'')}` : '');
+// ── Manage Quotations Modal ───────────────────────────────────────────────────
+window.openModal = function() {
+  document.getElementById('saveNameInput').value = loadedName || (currentQuoteMeta
+    ? `${(currentQuoteMeta.client||'').replace(/[\\/:*?"<>|]/g,'')} _${(currentQuoteMeta.quoteNo||'').replace(/[\\/:*?"<>|]/g,'')}`
+    : '');
   document.getElementById('modalSearch').value = '';
   renderQuoteList();
   document.getElementById('modalOverlay').classList.add('open');
-}
-
-function closeModal() {
+};
+window.closeModal = function() {
   document.getElementById('modalOverlay').classList.remove('open');
-}
-
-function overlayClick(e) {
+};
+window.overlayClick = function(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
-}
+};
 
-/* ── Confirm Dialog Controls ── */
+// ── Confirm Dialog ────────────────────────────────────────────────────────────
 function showConfirm(title, msg, onConfirm) {
   const overlay   = document.getElementById('confirmOverlay');
   const okBtn     = document.getElementById('confirmOkBtn');
   const cancelBtn = document.getElementById('confirmCancelBtn');
-
   document.getElementById('confirmTitle').textContent = title;
-  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmMsg').textContent   = msg;
 
-  // Replace buttons to clear any previously attached one-off listeners
-  const newOkBtn = okBtn.cloneNode(true);
-  okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+  const newOkBtn     = okBtn.cloneNode(true);
   const newCancelBtn = cancelBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOkBtn, okBtn);
   cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
 
   function closeConfirm() {
@@ -2131,29 +2282,20 @@ function showConfirm(title, msg, onConfirm) {
     overlay.onclick = null;
     document.removeEventListener('keydown', onKeydown);
   }
-  function onKeydown(e) {
-    if (e.key === 'Escape') closeConfirm();
-  }
+  function onKeydown(e) { if (e.key === 'Escape') closeConfirm(); }
 
-  newOkBtn.addEventListener('click', () => {
-    closeConfirm();
-    onConfirm();
-  });
+  newOkBtn.addEventListener('click', () => { closeConfirm(); onConfirm(); });
   newCancelBtn.addEventListener('click', closeConfirm);
   overlay.onclick = (e) => { if (e.target === overlay) closeConfirm(); };
   document.addEventListener('keydown', onKeydown);
-
   overlay.classList.add('open');
 }
 
-/* ── Native Printing & Document Generation ── */
-function printQuote() {
-  window.print();
-}
+// ── Print & Export ────────────────────────────────────────────────────────────
+window.printQuote = function() { window.print(); };
 
-function exportCSV() {
+window.exportCSV = function() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
-  
   const { multiplier } = getParams();
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
   const isEur = (curSymbol === 'EUR' || curSymbol === 'ZAR');
@@ -2168,140 +2310,102 @@ function exportCSV() {
   headers.push('Unit Sell Price (MUR)', 'Total (MUR)');
   if (isEur) headers.push('Total (EUR)');
   if (isZar) headers.push('Total (ZAR)');
-  
+
   const csvRows = [headers.join(',')];
-  
-  const rates = ExchangeService.getRates();
-  let subtotalMUR = 0;
-  let subtotalEUR = 0;
-  let subtotalZAR = 0;
+  const rates   = ExchangeService.getRates();
+  let subtotalMUR = 0, subtotalEUR = 0, subtotalZAR = 0;
 
   rows.forEach(row => {
     const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
-    subtotalMUR += totalMUR;
-    subtotalEUR += totalEUR;
-    subtotalZAR += totalZAR;
+    subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR;
     const line = [
-      `"${(row.date || '').replace(/"/g, '""')}"`,
-      `"${row.ref.replace(/"/g, '""')}"`,
-      `"${row.name.replace(/"/g, '""')}"`,
-      row.qty,
-      row.ubp,
-      adjPriceZar.toFixed(2)
+      `"${(row.date || '').replace(/"/g,'""')}"`,
+      `"${row.ref.replace(/"/g,'""')}"`,
+      `"${row.name.replace(/"/g,'""')}"`,
+      row.qty, row.ubp, adjPriceZar.toFixed(2)
     ];
     if (isZar) line.push(adjPriceEur.toFixed(2));
-    line.push(
-      uspMUR.toFixed(2),
-      totalMUR.toFixed(2)
-    );
+    line.push(uspMUR.toFixed(2), totalMUR.toFixed(2));
     if (isEur) line.push(totalEUR.toFixed(2));
     if (isZar) line.push(totalZAR.toFixed(2));
     csvRows.push(line.join(','));
   });
 
   const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
-  const taxAmountMUR = subtotalMUR * (taxRate / 100);
-  const finalTotalMUR = subtotalMUR + taxAmountMUR;
-
+  const taxMUR  = subtotalMUR * (taxRate / 100);
   csvRows.push('');
   if (isZar) {
-    const taxAmountEUR = subtotalEUR * (taxRate / 100);
-    const finalTotalEUR = subtotalEUR + taxAmountEUR;
-    const taxAmountZAR = subtotalZAR * (taxRate / 100);
-    const finalTotalZAR = subtotalZAR + taxAmountZAR;
-
+    const taxEUR = subtotalEUR * (taxRate / 100);
+    const taxZAR = subtotalZAR * (taxRate / 100);
     csvRows.push(`,,,,,,,,Subtotal (MUR),${subtotalMUR.toFixed(2)},Subtotal (EUR),${subtotalEUR.toFixed(2)},Subtotal (ZAR),${subtotalZAR.toFixed(2)}`);
-    csvRows.push(`,,,,,,,,Tax (${taxRate}% - MUR),${taxAmountMUR.toFixed(2)},Tax (${taxRate}% - EUR),${taxAmountEUR.toFixed(2)},Tax (${taxRate}% - ZAR),${taxAmountZAR.toFixed(2)}`);
-    csvRows.push(`,,,,,,,,Grand Total (MUR),${finalTotalMUR.toFixed(2)},Grand Total (EUR),${finalTotalEUR.toFixed(2)},Grand Total (ZAR),${finalTotalZAR.toFixed(2)}`);
+    csvRows.push(`,,,,,,,,Tax (${taxRate}% - MUR),${taxMUR.toFixed(2)},Tax (${taxRate}% - EUR),${taxEUR.toFixed(2)},Tax (${taxRate}% - ZAR),${taxZAR.toFixed(2)}`);
+    csvRows.push(`,,,,,,,,Grand Total (MUR),${(subtotalMUR+taxMUR).toFixed(2)},Grand Total (EUR),${(subtotalEUR+taxEUR).toFixed(2)},Grand Total (ZAR),${(subtotalZAR+taxZAR).toFixed(2)}`);
   } else if (isEur) {
-    const taxAmountEUR = subtotalEUR * (taxRate / 100);
-    const finalTotalEUR = subtotalEUR + taxAmountEUR;
-
+    const taxEUR = subtotalEUR * (taxRate / 100);
     csvRows.push(`,,,,,,,Subtotal (MUR),${subtotalMUR.toFixed(2)},Subtotal (EUR),${subtotalEUR.toFixed(2)}`);
-    csvRows.push(`,,,,,,,Tax (${taxRate}% - MUR),${taxAmountMUR.toFixed(2)},Tax (${taxRate}% - EUR),${taxAmountEUR.toFixed(2)}`);
-    csvRows.push(`,,,,,,,Grand Total (MUR),${finalTotalMUR.toFixed(2)},Grand Total (EUR),${finalTotalEUR.toFixed(2)}`);
+    csvRows.push(`,,,,,,,Tax (${taxRate}% - MUR),${taxMUR.toFixed(2)},Tax (${taxRate}% - EUR),${taxEUR.toFixed(2)}`);
+    csvRows.push(`,,,,,,,Grand Total (MUR),${(subtotalMUR+taxMUR).toFixed(2)},Grand Total (EUR),${(subtotalEUR+taxEUR).toFixed(2)}`);
   } else {
     csvRows.push(`,,,,,,Subtotal,${subtotalMUR.toFixed(2)}`);
-    csvRows.push(`,,,,,,Tax (${taxRate}%),${taxAmountMUR.toFixed(2)}`);
-    csvRows.push(`,,,,,,Grand Total,${finalTotalMUR.toFixed(2)}`);
+    csvRows.push(`,,,,,,Tax (${taxRate}%),${taxMUR.toFixed(2)}`);
+    csvRows.push(`,,,,,,Grand Total,${(subtotalMUR+taxMUR).toFixed(2)}`);
   }
-  
-  const csvString = csvRows.join('\n');
-  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  
-  const filename = (loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.csv';
-  
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
+  link.href     = URL.createObjectURL(blob);
+  link.download = (loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.csv';
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   showToast('CSV exported');
-}
+};
 
-/* ── PDF Export Options Controls ── */
-function openPDFOptionsModal() {
+// ── PDF Export ────────────────────────────────────────────────────────────────
+window.openPDFOptionsModal = function() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
-  
-  // Set defaults smartly based on the active currency of the quotation
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
-  const isZar = (curSymbol === 'ZAR');
-
+  const isZar     = (curSymbol === 'ZAR');
   document.getElementById('pdfOptLabel_adjPriceZar').style.display = isZar ? 'flex' : 'none';
-
-  document.getElementById('pdfOpt_totalEur').checked = (curSymbol === 'EUR' || curSymbol === 'ZAR');
-  document.getElementById('pdfOpt_eurSummary').checked = (curSymbol === 'EUR' || curSymbol === 'ZAR');
-  document.getElementById('pdfOpt_totalZar').checked = (curSymbol === 'ZAR');
-  document.getElementById('pdfOpt_zarSummary').checked = (curSymbol === 'ZAR');
-  
+  document.getElementById('pdfOpt_totalEur').checked    = (curSymbol === 'EUR' || curSymbol === 'ZAR');
+  document.getElementById('pdfOpt_eurSummary').checked  = (curSymbol === 'EUR' || curSymbol === 'ZAR');
+  document.getElementById('pdfOpt_totalZar').checked    = isZar;
+  document.getElementById('pdfOpt_zarSummary').checked  = isZar;
   document.getElementById('pdfOptionsOverlay').classList.add('open');
-}
-
-function closePDFOptionsModal() {
+};
+window.closePDFOptionsModal = function() {
   document.getElementById('pdfOptionsOverlay').classList.remove('open');
-}
-
-function pdfOptionsOverlayClick(e) {
+};
+window.pdfOptionsOverlayClick = function(e) {
   if (e.target === document.getElementById('pdfOptionsOverlay')) closePDFOptionsModal();
-}
+};
 
-function exportPDF() {
+window.exportPDF = function() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
   if (!window.jspdf) { showToast('PDF library failed to load', 'error'); return; }
 
   const { jsPDF } = window.jspdf;
   const { multiplier } = getParams();
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-  const title = loadedName || currentQuoteMeta.quoteNo || 'Quotation';
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
   const isZar = (curSymbol === 'ZAR');
 
-  // Left Section Header Info
-  doc.setFontSize(14);
-  doc.setFont(undefined, 'bold');
+  doc.setFontSize(14); doc.setFont(undefined,'bold');
   doc.text('MULTIVAC Spare Parts — Quotation', 14, 16);
-
-  doc.setFontSize(9);
-  doc.setFont(undefined, 'normal');
-  doc.text(`Quote No: ${currentQuoteMeta.quoteNo || 'N/A'}`, 14, 22);
+  doc.setFontSize(9); doc.setFont(undefined,'normal');
+  doc.text(`Quote No: ${currentQuoteMeta.quoteNo || 'N/A'}`,    14, 22);
   doc.text(`Reference: ${currentQuoteMeta.reference || 'N/A'}`, 14, 26);
-  doc.text(`Client: ${currentQuoteMeta.client || 'N/A'}`, 14, 30);
-  doc.text(`Issue Date: ${currentQuoteMeta.issueDate || 'N/A'}`, 14, 34);
-  doc.text(`Expiry Date: ${currentQuoteMeta.expiryDate || 'N/A'}`, 14, 38);
+  doc.text(`Client: ${currentQuoteMeta.client || 'N/A'}`,       14, 30);
+  doc.text(`Issue Date: ${currentQuoteMeta.issueDate || 'N/A'}`,14, 34);
+  doc.text(`Expiry Date: ${currentQuoteMeta.expiryDate || 'N/A'}`,14,38);
 
-  // Service Provider Address Block
   if (currentQuoteMeta.providerId) {
     const p = SERVICE_PROVIDERS.find(x => x.id === currentQuoteMeta.providerId);
     if (p) {
-      doc.setFont(undefined, 'bold');
-      doc.setFontSize(10);
+      doc.setFont(undefined,'bold'); doc.setFontSize(10);
       doc.text('Service Provider:', 160, 16);
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(8.5);
+      doc.setFont(undefined,'normal'); doc.setFontSize(8.5);
       doc.text(p.name, 160, 20);
       doc.text(p.address, 160, 24);
       doc.text(`VAT: ${p.vat}   BRN: ${p.brn}`, 160, 28);
@@ -2309,221 +2413,129 @@ function exportPDF() {
     }
   }
 
-  // Get settings from checkboxes
-  const showPricingRules = document.getElementById('pdfOpt_pricingRules').checked;
-  const showDateAdded = document.getElementById('pdfOpt_dateAdded').checked;
-  const showUnitBuyPrice = document.getElementById('pdfOpt_unitBuyPrice').checked;
-  
-  const showAdjPriceZar = document.getElementById('pdfOpt_adjPriceZar').checked;
-  const showAdjPriceEur = document.getElementById('pdfOpt_adjPriceEur').checked;
-
+  const showPricingRules  = document.getElementById('pdfOpt_pricingRules').checked;
+  const showDateAdded     = document.getElementById('pdfOpt_dateAdded').checked;
+  const showUnitBuyPrice  = document.getElementById('pdfOpt_unitBuyPrice').checked;
+  const showAdjPriceZar   = document.getElementById('pdfOpt_adjPriceZar').checked;
+  const showAdjPriceEur   = document.getElementById('pdfOpt_adjPriceEur').checked;
   const showUnitSellPrice = document.getElementById('pdfOpt_unitSellPrice').checked;
-  const showTotalMur = document.getElementById('pdfOpt_totalMur').checked;
-  const showTotalEur = document.getElementById('pdfOpt_totalEur').checked;
-  const showTotalZar = document.getElementById('pdfOpt_totalZar').checked;
-
-  const showMurSummary = document.getElementById('pdfOpt_murSummary').checked;
-  const showEurSummary = document.getElementById('pdfOpt_eurSummary').checked;
-  const showZarSummary = document.getElementById('pdfOpt_zarSummary').checked;
+  const showTotalMur      = document.getElementById('pdfOpt_totalMur').checked;
+  const showTotalEur      = document.getElementById('pdfOpt_totalEur').checked;
+  const showTotalZar      = document.getElementById('pdfOpt_totalZar').checked;
+  const showMurSummary    = document.getElementById('pdfOpt_murSummary').checked;
+  const showEurSummary    = document.getElementById('pdfOpt_eurSummary').checked;
+  const showZarSummary    = document.getElementById('pdfOpt_zarSummary').checked;
 
   const rates = ExchangeService.getRates();
-
-  // Pricing Rule Legend
   let startY = 43;
   if (showPricingRules) {
-    doc.setFontSize(8);
-    doc.setFont(undefined, 'italic');
-    doc.text(
-      `Pricing Rules — Multiplier: ${multiplier}  Adjuster: ${rates.adjusterPercent}%  Rate: ${fmt(rates.eurToMur, 2)}  Adjusted Rate: ${fmt(rates.adjRate_EUR_MUR, 3)} MUR/EUR`,
-      14, 44
-    );
+    doc.setFontSize(8); doc.setFont(undefined,'italic');
+    doc.text(`Pricing Rules — Multiplier: ${multiplier}  Adjuster: ${rates.adjusterPercent}%  Rate: ${fmt(rates.eurToMur,2)}  Adjusted Rate: ${fmt(rates.adjRate_EUR_MUR,3)} MUR/EUR`, 14, 44);
     startY = 47;
   }
 
-  // Dynamically compile columns based on parameters [1, 2]
-  const headRow = [];
-  const colIndices = [];
-
-  if (showDateAdded) { headRow.push('Date Added'); colIndices.push('date'); }
-  headRow.push('Part Ref'); colIndices.push('ref');
+  const headRow = [], colIndices = [];
+  if (showDateAdded)     { headRow.push('Date Added');                                               colIndices.push('date'); }
+  headRow.push('Part Ref');  colIndices.push('ref');
   headRow.push('Part Name'); colIndices.push('name');
-  headRow.push('Qty'); colIndices.push('qty');
-
-  if (showUnitBuyPrice) {
-    headRow.push(isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)');
-    colIndices.push('ubp');
-  }
-
+  headRow.push('Qty');       colIndices.push('qty');
+  if (showUnitBuyPrice)  { headRow.push(isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)');   colIndices.push('ubp'); }
   if (isZar) {
-    if (showAdjPriceZar) {
-      headRow.push('Adj. Price (ZAR)');
-      colIndices.push('adjPriceZar');
-    }
-    if (showAdjPriceEur) {
-      headRow.push('Adj. Price (EUR)');
-      colIndices.push('adjPriceEur');
-    }
+    if (showAdjPriceZar) { headRow.push('Adj. Price (ZAR)'); colIndices.push('adjPriceZar'); }
+    if (showAdjPriceEur) { headRow.push('Adj. Price (EUR)'); colIndices.push('adjPriceEur'); }
   } else {
-    if (showAdjPriceEur) {
-      headRow.push('Adj. Price (EUR)');
-      colIndices.push('adjPriceEur');
-    }
+    if (showAdjPriceEur) { headRow.push('Adj. Price (EUR)'); colIndices.push('adjPriceEur'); }
   }
+  if (showUnitSellPrice) { headRow.push('Unit Sell Price (MUR)'); colIndices.push('uspMUR'); }
+  if (showTotalMur)      { headRow.push('Total (MUR)');           colIndices.push('totalMUR'); }
+  if (showTotalEur)      { headRow.push('Total (EUR)');           colIndices.push('totalEUR'); }
+  if (showTotalZar)      { headRow.push('Total (ZAR)');           colIndices.push('totalZAR'); }
 
-  if (showUnitSellPrice) {
-    headRow.push('Unit Sell Price (MUR)');
-    colIndices.push('uspMUR');
-  }
-  if (showTotalMur) {
-    headRow.push('Total (MUR)');
-    colIndices.push('totalMUR');
-  }
-  if (showTotalEur) {
-    headRow.push('Total (EUR)');
-    colIndices.push('totalEUR');
-  }
-  if (showTotalZar) {
-    headRow.push('Total (ZAR)');
-    colIndices.push('totalZAR');
-  }
-
-  const head = [headRow];
-
-  let subtotalMUR = 0;
-  let subtotalEUR = 0;
-  let subtotalZAR = 0;
-
+  let subtotalMUR = 0, subtotalEUR = 0, subtotalZAR = 0;
   const body = rows.map(row => {
     const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
-    subtotalMUR += totalMUR;
-    subtotalEUR += totalEUR;
-    subtotalZAR += totalZAR;
-
+    subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR;
     const r = [];
     colIndices.forEach(col => {
-      if (col === 'date') r.push(row.date || 'N/A');
-      else if (col === 'ref') r.push(row.ref || '');
-      else if (col === 'name') r.push(row.name || '');
-      else if (col === 'qty') r.push(row.qty);
-      else if (col === 'ubp') r.push(fmt(row.ubp));
+      if      (col === 'date')        r.push(row.date || 'N/A');
+      else if (col === 'ref')         r.push(row.ref  || '');
+      else if (col === 'name')        r.push(row.name || '');
+      else if (col === 'qty')         r.push(row.qty);
+      else if (col === 'ubp')         r.push(fmt(row.ubp));
       else if (col === 'adjPriceZar') r.push(fmt(adjPriceZar));
       else if (col === 'adjPriceEur') r.push(fmt(adjPriceEur));
-      else if (col === 'uspMUR') r.push(fmt(uspMUR));
-      else if (col === 'totalMUR') r.push(fmt(totalMUR));
-      else if (col === 'totalEUR') r.push(fmt(totalEUR));
-      else if (col === 'totalZAR') r.push(fmt(totalZAR));
+      else if (col === 'uspMUR')      r.push(fmt(uspMUR));
+      else if (col === 'totalMUR')    r.push(fmt(totalMUR));
+      else if (col === 'totalEUR')    r.push(fmt(totalEUR));
+      else if (col === 'totalZAR')    r.push(fmt(totalZAR));
     });
     return r;
   });
 
-  // Automatically adjust numeric column alignments dynamically [2]
+  const numericCols = ['Qty','Unit Buy Price (ZAR)','Unit Buy Price (EUR)','Adj. Price (ZAR)','Adj. Price (EUR)','Unit Sell Price (MUR)','Total (MUR)','Total (EUR)','Total (ZAR)'];
   const columnStyles = {};
-  headRow.forEach((colName, index) => {
-    if (['Qty', 'Unit Buy Price (ZAR)', 'Unit Buy Price (EUR)', 'Adj. Price (ZAR)', 'Adj. Price (EUR)', 'Unit Sell Price (MUR)', 'Total (MUR)', 'Total (EUR)', 'Total (ZAR)'].includes(colName)) {
-      columnStyles[index] = { halign: 'right' };
-    } else {
-      columnStyles[index] = { halign: 'left' };
-    }
-  });
+  headRow.forEach((col, i) => { columnStyles[i] = { halign: numericCols.includes(col) ? 'right' : 'left' }; });
 
   doc.autoTable({
-    head, body,
-    startY: startY,
+    head: [headRow], body, startY,
     styles: { fontSize: 7.5, cellPadding: 1.5 },
     headStyles: { fillColor: [30, 58, 95], textColor: 255 },
     columnStyles,
-    // Propagate alignment formatting cleanly down to the header row cells
-    didParseCell: function(data) {
-      const colIndex = data.column.index;
-      if (columnStyles[colIndex]) {
-        data.cell.styles.halign = columnStyles[colIndex].halign;
-      }
-    }
+    didParseCell(data) { if (columnStyles[data.column.index]) data.cell.styles.halign = columnStyles[data.column.index].halign; }
   });
 
-  const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) || startY;
-  
+  const finalY  = (doc.lastAutoTable && doc.lastAutoTable.finalY) || startY;
   const taxRate = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
+  let currentX  = 280;
 
-  // Stacking summaries right-to-left dynamically to avoid empty layout gaps [1, 2]
-  let currentX = 280;
-
-  // MUR Summary
   if (showMurSummary) {
-    const taxAmountMUR = subtotalMUR * (taxRate / 100);
-    const finalTotalMUR = subtotalMUR + taxAmountMUR;
-
-    doc.setFontSize(8.5);
-    doc.setFont(undefined, 'bold');
-    doc.text('MUR SUMMARY', currentX, finalY + 6, { align: 'right' });
-    doc.setFont(undefined, 'normal');
-    doc.text(`Subtotal: MUR ${fmt(subtotalMUR)}`, currentX, finalY + 11, { align: 'right' });
-    doc.text(`Tax (${taxRate}%): MUR ${fmt(taxAmountMUR)}`, currentX, finalY + 16, { align: 'right' });
-    doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: MUR ${fmt(finalTotalMUR)}`, currentX, finalY + 22, { align: 'right' });
-
+    const taxMUR = subtotalMUR * (taxRate / 100);
+    doc.setFontSize(8.5); doc.setFont(undefined,'bold');
+    doc.text('MUR SUMMARY', currentX, finalY+6, { align:'right' });
+    doc.setFont(undefined,'normal');
+    doc.text(`Subtotal: MUR ${fmt(subtotalMUR)}`, currentX, finalY+11, { align:'right' });
+    doc.text(`Tax (${taxRate}%): MUR ${fmt(taxMUR)}`, currentX, finalY+16, { align:'right' });
+    doc.setFont(undefined,'bold');
+    doc.text(`Grand Total: MUR ${fmt(subtotalMUR+taxMUR)}`, currentX, finalY+22, { align:'right' });
     currentX -= 55;
   }
-
-  // EUR Summary
   if (showEurSummary) {
-    const taxAmountEUR = subtotalEUR * (taxRate / 100);
-    const finalTotalEUR = subtotalEUR + taxAmountEUR;
-
-    doc.setFontSize(8.5);
-    doc.setFont(undefined, 'bold');
-    doc.text('EUR SUMMARY', currentX, finalY + 6, { align: 'right' });
-    doc.setFont(undefined, 'normal');
-    doc.text(`Subtotal: EUR ${fmt(subtotalEUR)}`, currentX, finalY + 11, { align: 'right' });
-    doc.text(`Tax (${taxRate}%): EUR ${fmt(taxAmountEUR)}`, currentX, finalY + 16, { align: 'right' });
-    doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: EUR ${fmt(finalTotalEUR)}`, currentX, finalY + 22, { align: 'right' });
-
+    const taxEUR = subtotalEUR * (taxRate / 100);
+    doc.setFontSize(8.5); doc.setFont(undefined,'bold');
+    doc.text('EUR SUMMARY', currentX, finalY+6, { align:'right' });
+    doc.setFont(undefined,'normal');
+    doc.text(`Subtotal: EUR ${fmt(subtotalEUR)}`, currentX, finalY+11, { align:'right' });
+    doc.text(`Tax (${taxRate}%): EUR ${fmt(taxEUR)}`, currentX, finalY+16, { align:'right' });
+    doc.setFont(undefined,'bold');
+    doc.text(`Grand Total: EUR ${fmt(subtotalEUR+taxEUR)}`, currentX, finalY+22, { align:'right' });
     currentX -= 55;
   }
-
-  // ZAR Summary
   if (showZarSummary) {
-    const taxAmountZAR = subtotalZAR * (taxRate / 100);
-    const finalTotalZAR = subtotalZAR + taxAmountZAR;
-
-    doc.setFontSize(8.5);
-    doc.setFont(undefined, 'bold');
-    doc.text('ZAR SUMMARY', currentX, finalY + 6, { align: 'right' });
-    doc.setFont(undefined, 'normal');
-    doc.text(`Subtotal: ZAR ${fmt(subtotalZAR)}`, currentX, finalY + 11, { align: 'right' });
-    doc.text(`Tax (${taxRate}%): ZAR ${fmt(taxAmountZAR)}`, currentX, finalY + 16, { align: 'right' });
-    doc.setFont(undefined, 'bold');
-    doc.text(`Grand Total: ZAR ${fmt(finalTotalZAR)}`, currentX, finalY + 22, { align: 'right' });
-
-    currentX -= 55;
+    const taxZAR = subtotalZAR * (taxRate / 100);
+    doc.setFontSize(8.5); doc.setFont(undefined,'bold');
+    doc.text('ZAR SUMMARY', currentX, finalY+6, { align:'right' });
+    doc.setFont(undefined,'normal');
+    doc.text(`Subtotal: ZAR ${fmt(subtotalZAR)}`, currentX, finalY+11, { align:'right' });
+    doc.text(`Tax (${taxRate}%): ZAR ${fmt(taxZAR)}`, currentX, finalY+16, { align:'right' });
+    doc.setFont(undefined,'bold');
+    doc.text(`Grand Total: ZAR ${fmt(subtotalZAR+taxZAR)}`, currentX, finalY+22, { align:'right' });
   }
 
-  // Exworks/Exstock T&C display (with boundary constraint based on left summaries) [1]
-  // Positioned vertically below the floating grand total summary cards (startY = finalY + 29)
   const activeTermsText = getTermsText(currentQuoteMeta.termsType);
   if (activeTermsText) {
-    const termsStartY = finalY + 29;
-    
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(8.5);
-    doc.text(`Terms & Conditions (${currentQuoteMeta.termsType}):`, 14, termsStartY);
-    
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(7.5);
-    const termsMaxWidth = 268; // Spans full landscape width since it is rendered vertically below totals
-    const termsLines = doc.splitTextToSize(activeTermsText, termsMaxWidth);
-    doc.text(termsLines, 14, termsStartY + 5);
+    const termsY = finalY + 29;
+    doc.setFont(undefined,'bold'); doc.setFontSize(8.5);
+    doc.text(`Terms & Conditions (${currentQuoteMeta.termsType}):`, 14, termsY);
+    doc.setFont(undefined,'normal'); doc.setFontSize(7.5);
+    doc.text(doc.splitTextToSize(activeTermsText, 268), 14, termsY + 5);
   }
 
-  const filename = (loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
-  doc.save(filename);
-  
+  doc.save((loadedName || currentQuoteMeta.quoteNo || 'quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf');
   showToast('PDF exported');
   closePDFOptionsModal();
-}
+};
 
-/* ── Toast Dialogs ── */
+// ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + type;
@@ -2531,6 +2543,9 @@ function showToast(msg, type = 'success') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+// Expose showToast globally for the confirm callback which lives outside the module
+window._showToast = showToast;
 </script>
 </body>
 </html>
