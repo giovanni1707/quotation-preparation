@@ -202,6 +202,7 @@
   col.col-total  { width: 120px; }
   col.col-total-eur { width: 120px; }
   col.col-total-zar { width: 120px; }
+  col.col-discount  { width: 80px;  }
   col.col-action { width: 44px;  }
 
   thead th {
@@ -241,6 +242,30 @@
 
   .calc-cell  { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .total-cell { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ── Discount cell ── */
+  /* Shows a subtle teal tint when the row is using the quote-level default */
+  .disc-inherited {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 11px;
+  }
+  /* Shows orange accent when the row has its own explicit override */
+  .disc-override {
+    color: #d97706;
+    font-weight: 700;
+  }
+  /* Small pill shown inside the quote meta card when a client discount is active */
+  .disc-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #fef3c7; color: #92400e;
+    border: 1px solid #fcd34d; border-radius: 20px;
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    margin-left: 6px; vertical-align: middle;
+  }
+  [data-theme="dark"] .disc-badge {
+    background: #451a03; color: #fcd34d; border-color: #92400e;
+  }
 
   .delete-btn {
     background: none; border: none; cursor: pointer; font-size: 15px;
@@ -516,6 +541,10 @@
           <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">CURRENCY / TAX / TERMS</div>
           <div id="metaDispDetails" style="font-size: 13px;">-</div>
         </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">CLIENT DISCOUNT</div>
+          <div id="metaDispDiscount" style="font-size: 13px;">—</div>
+        </div>
       </div>
       <div id="metaDispProviderSection" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: none;">
         <div style="font-size: 11px; font-weight: 500; color: var(--muted); margin-bottom: 2px;">SERVICE PROVIDER</div>
@@ -592,6 +621,7 @@
             <col class="col-name" />
             <col class="col-qty" />
             <col class="col-ubp" />
+            <col class="col-discount" />
             <col class="col-adj-zar" />
             <col class="col-adj-eur" />
             <col class="col-usp" />
@@ -607,6 +637,7 @@
               <th class="th-left col-name">Part Name</th>
               <th class="th-right col-qty">Qty</th>
               <th class="th-right col-ubp">Unit Buy Price (EUR)</th>
+              <th class="th-right col-discount">Disc. %</th>
               <th class="th-right col-adj-zar">Adj. Price (ZAR)</th>
               <th class="th-right col-adj-eur">Adj. Price (EUR)</th>
               <th class="th-right col-usp">Unit Sell Price (MUR)</th>
@@ -756,6 +787,12 @@
       </div>
 
       <div class="input-group">
+        <label class="field-label" style="font-weight:700">Client Discount (%) <span style="color:var(--muted); font-weight:400">— Optional, applied to all rows</span></label>
+        <input class="field-input" type="number" id="infoClientDiscount"
+               min="0" max="100" step="0.1" placeholder="e.g. 10 — leave blank for none" />
+      </div>
+
+      <div class="input-group">
         <label class="field-label" style="font-weight:700">Service Provider (Optional)</label>
         <select class="field-input" id="infoProvider"></select>
       </div>
@@ -833,6 +870,10 @@
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <span class="field-label" style="font-size: 10px; font-weight:700; color: var(--muted); text-transform: uppercase;">Table Columns</span>
 
+        <label id="colOptLabel_discount" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="colOpt_discount" checked />
+          Disc. % (Client Discount)
+        </label>
         <label id="colOptLabel_adjPriceZar" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="colOpt_adjPriceZar" checked />
           Adj. Price (ZAR)
@@ -908,6 +949,10 @@
         <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="pdfOpt_unitBuyPrice" checked />
           Unit Buy Price
+        </label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
+          <input type="checkbox" id="pdfOpt_discount" checked />
+          Disc. % (Client Discount)
         </label>
         <label id="pdfOptLabel_adjPriceZar" style="display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;">
           <input type="checkbox" id="pdfOpt_adjPriceZar" checked />
@@ -1071,6 +1116,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const DEFAULT_COLUMN_OPTIONS = {
+  discount: true,
   adjPriceZar: true,
   adjPriceEur: true,
   unitSellPriceMur: true,
@@ -1081,6 +1127,24 @@ const DEFAULT_COLUMN_OPTIONS = {
   eurSummary: true,
   zarSummary: true
 };
+
+// ── Discount Resolution ──────────────────────────────────────────────────────
+// Returns the effective discount % for a row using Option 3 logic:
+//   1. If the row has its own explicit value → use it (even if 0, meaning "no discount")
+//   2. Otherwise fall back to currentQuoteMeta.clientDiscount (the quote default)
+//   3. If neither is set → 0 (no discount)
+function resolveDiscount(row) {
+  if (row.discount !== null && row.discount !== undefined && row.discount !== '') {
+    return parseFloat(row.discount) || 0;
+  }
+  return parseFloat(currentQuoteMeta?.clientDiscount) || 0;
+}
+
+// Returns a display string for the input placeholder showing the active quote-level default
+function resolveDiscountPlaceholder() {
+  const d = parseFloat(currentQuoteMeta?.clientDiscount);
+  return (!isNaN(d) && d > 0) ? `Default: ${d}%` : '0';
+}
 
 // ── Central Exchange Rate Service ────────────────────────────────────────────
 const ExchangeService = {
@@ -1097,6 +1161,10 @@ const ExchangeService = {
     const qty      = parseFloat(row.qty) || 0;
     const inputVal = parseFloat(row.ubp) || 0;
 
+    // Resolve the effective discount for this row (quote-level default or row override)
+    const discountPct = resolveDiscount(row);
+    const discountMult = 1 - (discountPct / 100);
+
     if (currency === 'ZAR') {
       const adjPriceZAR = inputVal * multiplier;
       let finalAdjPriceZAR = adjPriceZAR;
@@ -1105,12 +1173,15 @@ const ExchangeService = {
         const disc = parseFloat(appSettings.smiaDiscount) || 20;
         finalAdjPriceZAR = adjPriceZAR * (1 - disc / 100);
       }
+      // Apply client discount AFTER SMIA discount (if any)
+      finalAdjPriceZAR = finalAdjPriceZAR * discountMult;
+
       const uspMUR    = finalAdjPriceZAR * rates.adjRate_ZAR_MUR;
       const totalMUR  = qty * uspMUR;
       const totalEUR  = qty * finalAdjPriceZAR * rates.zarToEur;
       const totalZAR  = finalAdjPriceZAR * qty;
       const adjPriceEUR = finalAdjPriceZAR * rates.zarToEur;
-      return { adjPriceZar: finalAdjPriceZAR, adjPriceEur: adjPriceEUR, uspMUR, totalMUR, totalEUR, totalZAR };
+      return { adjPriceZar: finalAdjPriceZAR, adjPriceEur: adjPriceEUR, uspMUR, totalMUR, totalEUR, totalZAR, discountPct };
     } else {
       let adjPriceEUR = inputVal * multiplier;
       const multType  = document.getElementById('multiplierType').value;
@@ -1118,12 +1189,15 @@ const ExchangeService = {
         const disc = parseFloat(appSettings.smiaDiscount) || 20;
         adjPriceEUR = adjPriceEUR * (1 - disc / 100);
       }
+      // Apply client discount AFTER SMIA discount (if any)
+      adjPriceEUR = adjPriceEUR * discountMult;
+
       const uspMUR   = adjPriceEUR * rates.adjRate_EUR_MUR;
       const totalMUR = qty * uspMUR;
       const totalEUR = qty * adjPriceEUR;
       const adjPriceZAR = rates.zarToEur > 0 ? (adjPriceEUR / rates.zarToEur) : 0;
       const totalZAR = qty * adjPriceZAR;
-      return { adjPriceZar: adjPriceZAR, adjPriceEur: adjPriceEUR, uspMUR, totalMUR, totalEUR, totalZAR };
+      return { adjPriceZar: adjPriceZAR, adjPriceEur: adjPriceEUR, uspMUR, totalMUR, totalEUR, totalZAR, discountPct };
     }
   }
 };
@@ -1537,6 +1611,7 @@ window.openQuoteInfoModal = function(isCreateNew = false) {
     document.getElementById('infoCurrency').value     = 'MUR';
     document.getElementById('infoTax').value          = '15';
     document.getElementById('infoTermsType').value    = 'Exworks';
+    document.getElementById('infoClientDiscount').value = '';
     document.getElementById('infoProvider').value     = 'bavarian';
   } else {
     document.getElementById('infoClient').value       = currentQuoteMeta.client || '';
@@ -1548,6 +1623,7 @@ window.openQuoteInfoModal = function(isCreateNew = false) {
     document.getElementById('infoCurrency').value     = currentQuoteMeta.currency || 'MUR';
     document.getElementById('infoTax').value          = currentQuoteMeta.tax || '15';
     document.getElementById('infoTermsType').value    = currentQuoteMeta.termsType || 'Exworks';
+    document.getElementById('infoClientDiscount').value = currentQuoteMeta.clientDiscount != null ? currentQuoteMeta.clientDiscount : '';
     document.getElementById('infoProvider').value     = currentQuoteMeta.providerId || '';
   }
   onExpiryOptionChange();
@@ -1579,6 +1655,9 @@ window.saveQuoteInfo = async function() {
   const tax         = document.getElementById('infoTax').value;
   const termsType   = document.getElementById('infoTermsType').value;
   const providerId  = document.getElementById('infoProvider').value;
+  // clientDiscount: store as number if provided, or null for "no quote-level default"
+  const clientDiscountRaw = document.getElementById('infoClientDiscount').value.trim();
+  const clientDiscount    = clientDiscountRaw !== '' ? parseFloat(clientDiscountRaw) : null;
 
   let expiryDate = '';
   if (expiryOption === 'custom') {
@@ -1593,7 +1672,7 @@ window.saveQuoteInfo = async function() {
     return;
   }
 
-  currentQuoteMeta = { client, issueDate, expiryOption, expiryDate, quoteNo, reference: ref, currency, tax, termsType, providerId };
+  currentQuoteMeta = { client, issueDate, expiryOption, expiryDate, quoteNo, reference: ref, currency, tax, termsType, providerId, clientDiscount };
 
   if (isCreatingNewQuote) {
     rows = [];
@@ -1649,6 +1728,14 @@ function renderQuoteMetaDisplay() {
   document.getElementById('metaDispDates').innerHTML = `<strong>Issue:</strong> ${currentQuoteMeta.issueDate || 'N/A'}<br/><strong>Expiry:</strong> ${expiryText}`;
   document.getElementById('metaDispDetails').innerHTML = `<strong>Currency:</strong> ${currentQuoteMeta.currency || 'N/A'}<br/><strong>Tax Code:</strong> ${currentQuoteMeta.tax}%<br/><strong>Terms Allocation:</strong> ${currentQuoteMeta.termsType || 'N/A'}`;
 
+  // Client discount display
+  const discEl = document.getElementById('metaDispDiscount');
+  if (currentQuoteMeta.clientDiscount != null && currentQuoteMeta.clientDiscount > 0) {
+    discEl.innerHTML = `<strong>${currentQuoteMeta.clientDiscount}%</strong> off Adj. Price <span class="disc-badge">🏷 Active</span>`;
+  } else {
+    discEl.textContent = '— None';
+  }
+
   const providerSec  = document.getElementById('metaDispProviderSection');
   const providerDisp = document.getElementById('metaDispProvider');
   if (currentQuoteMeta.providerId) {
@@ -1684,6 +1771,7 @@ function resolveOnScreenVisibilities() {
   const isZar = (curSymbol === 'ZAR');
   const isEurOrZar = (curSymbol === 'EUR' || curSymbol === 'ZAR');
 
+  toggleColumnVisibilityOnScreen('col-discount', opts.discount !== false);
   toggleColumnVisibilityOnScreen('col-adj-zar', isZar && opts.adjPriceZar);
   toggleColumnVisibilityOnScreen('col-adj-eur', opts.adjPriceEur);
   toggleColumnVisibilityOnScreen('col-usp',     opts.unitSellPriceMur);
@@ -1702,6 +1790,7 @@ window.openColumnOptionsModal = function() {
   const isZar = (curSymbol === 'ZAR');
   const isEurOrZar = (curSymbol === 'EUR' || curSymbol === 'ZAR');
 
+  document.getElementById('colOpt_discount').checked      = opts.discount !== false;
   document.getElementById('colOpt_adjPriceZar').checked    = opts.adjPriceZar;
   document.getElementById('colOpt_adjPriceEur').checked    = opts.adjPriceEur;
   document.getElementById('colOpt_unitSellPriceMur').checked = opts.unitSellPriceMur;
@@ -1733,6 +1822,7 @@ window.columnOptionsOverlayClick = function(e) {
 // of localStorage.setItem('qms_column_options', ...)
 window.saveColumnOptionsFromModal = async function() {
   const opts = {
+    discount:        document.getElementById('colOpt_discount').checked,
     adjPriceZar:     document.getElementById('colOpt_adjPriceZar').checked,
     adjPriceEur:     document.getElementById('colOpt_adjPriceEur').checked,
     unitSellPriceMur: document.getElementById('colOpt_unitSellPriceMur').checked,
@@ -1782,7 +1872,7 @@ function recalcAll() {
 
   document.querySelectorAll('#tableBody tr[data-id]').forEach(tr => {
     const row = rows.find(r => r.id === tr.dataset.id); if (!row) return;
-    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR, discountPct } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     const visible = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
     if (visible) { subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR; }
     tr.querySelector('.cell-adj-price-zar').textContent = fmt(adjPriceZar);
@@ -1791,17 +1881,36 @@ function recalcAll() {
     tr.querySelector('.cell-total').textContent         = fmt(totalMUR);
     const eurCell = tr.querySelector('.cell-total-eur'); if (eurCell) eurCell.textContent = fmt(totalEUR);
     const zarCell = tr.querySelector('.cell-total-zar'); if (zarCell) zarCell.textContent = fmt(totalZAR);
+
+    // Style the discount cell to visually indicate inherited vs override
+    const discTd = tr.querySelector('.cell-discount');
+    if (discTd) {
+      const hasOverride = row.discount !== null && row.discount !== undefined && row.discount !== '';
+      discTd.classList.remove('disc-inherited', 'disc-override');
+      if (discountPct > 0) {
+        discTd.classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
+      }
+    }
   });
 
   document.querySelectorAll('#mobileRows .m-row[data-id]').forEach(card => {
     const row = rows.find(r => r.id === card.dataset.id); if (!row) return;
-    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR, discountPct } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     card.querySelector('.m-adj-price-zar').textContent = fmt(adjPriceZar);
     card.querySelector('.m-adj-price-eur').textContent = fmt(adjPriceEur);
     card.querySelector('.m-usp').textContent           = fmt(uspMUR);
     card.querySelector('.m-total').textContent         = fmt(totalMUR);
     const eurSpan = card.querySelector('.m-total-eur'); if (eurSpan) eurSpan.textContent = fmt(totalEUR);
     const zarSpan = card.querySelector('.m-total-zar'); if (zarSpan) zarSpan.textContent = fmt(totalZAR);
+    // Style the mobile discount field wrapper
+    const discWrap = card.querySelector('.m-disc-wrap');
+    if (discWrap) {
+      const hasOverride = row.discount !== null && row.discount !== undefined && row.discount !== '';
+      discWrap.classList.remove('disc-inherited', 'disc-override');
+      if (discountPct > 0) discWrap.classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
+      const discLabel = discWrap.querySelector('.m-disc-effective');
+      if (discLabel) discLabel.textContent = discountPct > 0 ? `Effective: ${fmt(discountPct,1)}%` : '';
+    }
   });
 
   // MUR totals
@@ -1833,7 +1942,7 @@ function recalcAll() {
 
 // ── Row Management ────────────────────────────────────────────────────────────
 window.addRow = function() {
-  const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0, date: getNow() };
+  const row = { id: uid(), ref: '', name: '', qty: 1, ubp: 0, discount: null, date: getNow() };
   rows.push(row);
   appendDesktopRow(row);
   appendMobileCard(row);
@@ -1932,10 +2041,11 @@ window.initiateNewQuoteWorkspace = function() {
 };
 
 function syncSiblingInput(id, field, value) {
+  const displayVal = (value === null || value === undefined) ? '' : value;
   const desktopInputs = document.querySelectorAll(`#tableBody tr[data-id="${id}"] input[data-field="${field}"]`);
   const mobileInputs  = document.querySelectorAll(`#mobileRows .m-row[data-id="${id}"] input[data-field="${field}"]`);
   [...desktopInputs, ...mobileInputs].forEach(inp => {
-    if (document.activeElement !== inp) inp.value = value;
+    if (document.activeElement !== inp) inp.value = displayVal;
   });
 }
 
@@ -1969,6 +2079,13 @@ function appendDesktopRow(row) {
     <td class="td-num col-ubp">
       <input class="cell-input" type="number" data-field="ubp" min="0" step="0.01" value="${row.ubp}"
         oninput="updateRowField('${row.id}','ubp',this.value)" />
+    </td>
+    <td class="td-num col-discount cell-discount">
+      <input class="cell-input" type="number" data-field="discount" min="0" max="100" step="0.1"
+        value="${row.discount != null && row.discount !== '' ? row.discount : ''}"
+        placeholder="${resolveDiscountPlaceholder()}"
+        title="Blank = inherit quote default. 0 = no discount for this row."
+        oninput="updateRowField('${row.id}','discount', this.value === '' ? null : this.value)" />
     </td>
     <td class="td-calc calc-cell col-adj-zar cell-adj-price-zar">0.00</td>
     <td class="td-calc calc-cell col-adj-eur cell-adj-price-eur">0.00</td>
@@ -2017,6 +2134,14 @@ function appendMobileCard(row) {
         <span class="m-label">Unit Buy Price (EUR)</span>
         <input class="m-input" type="number" data-field="ubp" min="0" step="0.01" value="${row.ubp}"
           oninput="updateRowField('${row.id}','ubp',this.value)" />
+      </div>
+      <div class="m-field m-disc-wrap col-discount">
+        <span class="m-label">Disc. % <span class="m-disc-effective" style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted);"></span></span>
+        <input class="m-input" type="number" data-field="discount" min="0" max="100" step="0.1"
+          value="${row.discount != null && row.discount !== '' ? row.discount : ''}"
+          placeholder="${resolveDiscountPlaceholder()}"
+          title="Blank = inherit quote default. 0 = no discount."
+          oninput="updateRowField('${row.id}','discount', this.value === '' ? null : this.value)" />
       </div>
     </div>
     <div class="m-row-calcs">
@@ -2304,6 +2429,7 @@ window.exportCSV = function() {
   const headers = [
     'Date Added', 'Part Reference', 'Part Name', 'Qty',
     isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)',
+    'Disc. %',
     isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)'
   ];
   if (isZar) headers.push('Adj. Price (EUR)');
@@ -2316,13 +2442,15 @@ window.exportCSV = function() {
   let subtotalMUR = 0, subtotalEUR = 0, subtotalZAR = 0;
 
   rows.forEach(row => {
-    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR, discountPct } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR;
     const line = [
       `"${(row.date || '').replace(/"/g,'""')}"`,
       `"${row.ref.replace(/"/g,'""')}"`,
       `"${row.name.replace(/"/g,'""')}"`,
-      row.qty, row.ubp, adjPriceZar.toFixed(2)
+      row.qty, row.ubp,
+      discountPct > 0 ? discountPct.toFixed(1) + '%' : '—',
+      adjPriceZar.toFixed(2)
     ];
     if (isZar) line.push(adjPriceEur.toFixed(2));
     line.push(uspMUR.toFixed(2), totalMUR.toFixed(2));
@@ -2416,6 +2544,7 @@ window.exportPDF = function() {
   const showPricingRules  = document.getElementById('pdfOpt_pricingRules').checked;
   const showDateAdded     = document.getElementById('pdfOpt_dateAdded').checked;
   const showUnitBuyPrice  = document.getElementById('pdfOpt_unitBuyPrice').checked;
+  const showDiscount      = document.getElementById('pdfOpt_discount').checked;
   const showAdjPriceZar   = document.getElementById('pdfOpt_adjPriceZar').checked;
   const showAdjPriceEur   = document.getElementById('pdfOpt_adjPriceEur').checked;
   const showUnitSellPrice = document.getElementById('pdfOpt_unitSellPrice').checked;
@@ -2440,6 +2569,7 @@ window.exportPDF = function() {
   headRow.push('Part Name'); colIndices.push('name');
   headRow.push('Qty');       colIndices.push('qty');
   if (showUnitBuyPrice)  { headRow.push(isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)');   colIndices.push('ubp'); }
+  if (showDiscount)      { headRow.push('Disc. %'); colIndices.push('discount'); }
   if (isZar) {
     if (showAdjPriceZar) { headRow.push('Adj. Price (ZAR)'); colIndices.push('adjPriceZar'); }
     if (showAdjPriceEur) { headRow.push('Adj. Price (EUR)'); colIndices.push('adjPriceEur'); }
@@ -2453,7 +2583,7 @@ window.exportPDF = function() {
 
   let subtotalMUR = 0, subtotalEUR = 0, subtotalZAR = 0;
   const body = rows.map(row => {
-    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
+    const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR, discountPct } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR;
     const r = [];
     colIndices.forEach(col => {
@@ -2462,6 +2592,7 @@ window.exportPDF = function() {
       else if (col === 'name')        r.push(row.name || '');
       else if (col === 'qty')         r.push(row.qty);
       else if (col === 'ubp')         r.push(fmt(row.ubp));
+      else if (col === 'discount')    r.push(discountPct > 0 ? fmt(discountPct, 1) + '%' : '—');
       else if (col === 'adjPriceZar') r.push(fmt(adjPriceZar));
       else if (col === 'adjPriceEur') r.push(fmt(adjPriceEur));
       else if (col === 'uspMUR')      r.push(fmt(uspMUR));
@@ -2472,7 +2603,7 @@ window.exportPDF = function() {
     return r;
   });
 
-  const numericCols = ['Qty','Unit Buy Price (ZAR)','Unit Buy Price (EUR)','Adj. Price (ZAR)','Adj. Price (EUR)','Unit Sell Price (MUR)','Total (MUR)','Total (EUR)','Total (ZAR)'];
+  const numericCols = ['Qty','Disc. %','Unit Buy Price (ZAR)','Unit Buy Price (EUR)','Adj. Price (ZAR)','Adj. Price (EUR)','Unit Sell Price (MUR)','Total (MUR)','Total (EUR)','Total (ZAR)'];
   const columnStyles = {};
   headRow.forEach((col, i) => { columnStyles[i] = { halign: numericCols.includes(col) ? 'right' : 'left' }; });
 
