@@ -462,72 +462,6 @@
     color: var(--text);
   }
   .btn-column-options:hover { background-color: #e2e8f0; }
-
-  /* ══════════════════════════════════════════════════════
-     EXSTOCK MODE
-     body[data-terms="Exstock"] drives all column/card
-     visibility — no per-element JS toggling needed.
-  ══════════════════════════════════════════════════════ */
-  body[data-terms="Exstock"] #pricingCard { display: none !important; }
-
-  /* Hide Exworks-only columns — Date, Ref, Name kept if needed but
-     per spec only Qty / UBP / Disc / Total (MUR) should show      */
-  body[data-terms="Exstock"] .col-date,
-  body[data-terms="Exstock"] .col-ref,
-  body[data-terms="Exstock"] .col-name,
-  body[data-terms="Exstock"] .col-adj-zar,
-  body[data-terms="Exstock"] .col-adj-eur,
-  body[data-terms="Exstock"] .col-usp,
-  body[data-terms="Exstock"] .col-total-eur,
-  body[data-terms="Exstock"] .col-total-zar { display: none !important; }
-
-  /* Hide EUR and ZAR grand-total summaries */
-  body[data-terms="Exstock"] .summary-eur,
-  body[data-terms="Exstock"] .summary-zar { display: none !important; }
-
-  /* Exstock info banner above the toolbar */
-  .exstock-notice {
-    display: none;
-    align-items: center; gap: 10px;
-    padding: 10px 20px;
-    background: #eff6ff;
-    border-bottom: 1px solid #bfdbfe;
-    font-size: 12px; color: #1d4ed8; font-weight: 500;
-    line-height: 1.5;
-  }
-  body[data-terms="Exstock"] .exstock-notice { display: flex; }
-  [data-theme="dark"] .exstock-notice {
-    background: #1e3a5f44; color: #93c5fd; border-color: #1e3a5f;
-  }
-
-  /* Badge shown in the meta card when Exstock is active */
-  .exstock-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    background: #eff6ff; color: #1d4ed8;
-    border: 1px solid #bfdbfe; border-radius: 20px;
-    font-size: 11px; font-weight: 700; padding: 2px 8px;
-    margin-left: 6px; vertical-align: middle;
-  }
-  [data-theme="dark"] .exstock-badge {
-    background: #1e3a5f; color: #93c5fd; border-color: #1e3a5f;
-  }
-
-  /* ══════════════════════════════════════════════════════
-     DISCOUNT COLUMN — effective-value read-only display
-     A <span class="disc-display"> lives below the input
-     and shows the resolved effective % as a small badge.
-  ══════════════════════════════════════════════════════ */
-  .disc-display {
-    display: block;
-    font-size: 10px;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    margin-top: 2px;
-    min-height: 14px;
-    transition: color .15s;
-  }
-  .disc-display.is-inherited { color: var(--muted); font-style: italic; }
-  .disc-display.is-override  { color: #d97706; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -627,7 +561,7 @@
   <div id="editorContainer" style="display:none">
 
     <!-- PRICING CARD -->
-    <div class="card" id="pricingCard" style="margin-bottom:16px;">
+    <div class="card" style="margin-bottom:16px;">
       <div class="card-header"><span class="card-label">Pricing Parameters</span></div>
       <div class="pricing-grid">
         <div class="input-group">
@@ -676,11 +610,6 @@
           <button class="btn btn-column-options" onclick="openColumnOptionsModal()">⚙️ Column Options</button>
           <button class="btn btn-primary" onclick="addRow()">+ Add Item</button>
         </div>
-      </div>
-
-      <!-- EXSTOCK MODE NOTICE — visible only when data-terms="Exstock" on body -->
-      <div class="exstock-notice">
-        ℹ️ <span><strong>Exstock mode active.</strong> Pricing parameters are hidden. Enter the final selling price (MUR) directly in the Unit Price column. Multipliers and exchange rates are not applied.</span>
       </div>
 
       <!-- DESKTOP TABLE -->
@@ -833,9 +762,9 @@
       <div class="input-group">
         <label class="field-label" style="font-weight:700">Currency <span style="color:var(--red)">*</span></label>
         <select class="field-input" id="infoCurrency" required>
-          <option value="MUR" id="currOptMUR" selected>MUR (Mauritian Rupee)</option>
-          <option value="EUR" id="currOptEUR">EUR (Euro)</option>
-          <option value="ZAR" id="currOptZAR">ZAR (South African Rand)</option>
+          <option value="MUR" selected>MUR (Mauritian Rupee)</option>
+          <option value="EUR">EUR (Euro)</option>
+          <option value="ZAR">ZAR (South African Rand)</option>
         </select>
       </div>
 
@@ -851,7 +780,7 @@
 
       <div class="input-group">
         <label class="field-label" style="font-weight:700">Terms &amp; Conditions Type <span style="color:var(--red)">*</span></label>
-        <select class="field-input" id="infoTermsType" required onchange="onTermsTypeChange()">
+        <select class="field-input" id="infoTermsType" required>
           <option value="Exworks" selected>Exworks</option>
           <option value="Exstock">Exstock</option>
         </select>
@@ -1214,37 +1143,8 @@ function resolveDiscount(row) {
 // Returns a display string for the input placeholder showing the active quote-level default
 function resolveDiscountPlaceholder() {
   const d = parseFloat(currentQuoteMeta?.clientDiscount);
-  return (!isNaN(d) && d > 0) ? `${d}` : '0';
+  return (!isNaN(d) && d > 0) ? `Default: ${d}%` : '0';
 }
-
-// ── Exstock mode helpers ──────────────────────────────────────────────────────
-// Single source of truth: is the current quote using Exstock terms?
-function isExstock() {
-  return currentQuoteMeta?.termsType === 'Exstock';
-}
-
-// Called by onchange on the Terms select inside the Quote Info modal.
-// Immediately locks/unlocks the Currency field without waiting for Save.
-window.onTermsTypeChange = function() {
-  const terms = document.getElementById('infoTermsType').value;
-  const currencySelect = document.getElementById('infoCurrency');
-  const eurOpt = document.getElementById('currOptEUR');
-  const zarOpt = document.getElementById('currOptZAR');
-
-  if (terms === 'Exstock') {
-    // Force currency to MUR and disable EUR/ZAR options
-    currencySelect.value   = 'MUR';
-    eurOpt.disabled        = true;
-    zarOpt.disabled        = true;
-    // Visual hint
-    currencySelect.title   = 'Exstock quotations are always in MUR';
-  } else {
-    // Restore normal currency selection
-    eurOpt.disabled        = false;
-    zarOpt.disabled        = false;
-    currencySelect.title   = '';
-  }
-};
 
 // ── Central Exchange Rate Service ────────────────────────────────────────────
 const ExchangeService = {
@@ -1262,23 +1162,9 @@ const ExchangeService = {
     const inputVal = parseFloat(row.ubp) || 0;
 
     // Resolve the effective discount for this row (quote-level default or row override)
-    const discountPct  = resolveDiscount(row);
+    const discountPct = resolveDiscount(row);
     const discountMult = 1 - (discountPct / 100);
 
-    // ── Exstock branch ──────────────────────────────────────────────────────
-    // ubp = final Unit Price (MUR). No multiplier, no conversion. Discount only.
-    if (isExstock()) {
-      const unitPriceMUR = inputVal * discountMult;
-      const totalMUR     = qty * unitPriceMUR;
-      return {
-        adjPriceZar: 0, adjPriceEur: 0,
-        uspMUR: unitPriceMUR,
-        totalMUR, totalEUR: 0, totalZAR: 0,
-        discountPct
-      };
-    }
-
-    // ── Standard Exworks branch ─────────────────────────────────────────────
     if (currency === 'ZAR') {
       const adjPriceZAR = inputVal * multiplier;
       let finalAdjPriceZAR = adjPriceZAR;
@@ -1741,7 +1627,6 @@ window.openQuoteInfoModal = function(isCreateNew = false) {
     document.getElementById('infoProvider').value     = currentQuoteMeta.providerId || '';
   }
   onExpiryOptionChange();
-  onTermsTypeChange(); // enforce Exstock currency lock on modal open
   document.getElementById('quoteInfoOverlay').classList.add('open');
 };
 
@@ -1841,9 +1726,7 @@ function renderQuoteMetaDisplay() {
     : `${currentQuoteMeta.expiryDate} (${currentQuoteMeta.expiryOption} Days)`;
 
   document.getElementById('metaDispDates').innerHTML = `<strong>Issue:</strong> ${currentQuoteMeta.issueDate || 'N/A'}<br/><strong>Expiry:</strong> ${expiryText}`;
-  const termsLabel = currentQuoteMeta.termsType || 'N/A';
-  const termsBadge = isExstock() ? ' <span class="exstock-badge">📦 Exstock</span>' : '';
-  document.getElementById('metaDispDetails').innerHTML = `<strong>Currency:</strong> ${currentQuoteMeta.currency || 'N/A'}<br/><strong>Tax Code:</strong> ${currentQuoteMeta.tax}%<br/><strong>Terms:</strong> ${termsLabel}${termsBadge}`;
+  document.getElementById('metaDispDetails').innerHTML = `<strong>Currency:</strong> ${currentQuoteMeta.currency || 'N/A'}<br/><strong>Tax Code:</strong> ${currentQuoteMeta.tax}%<br/><strong>Terms Allocation:</strong> ${currentQuoteMeta.termsType || 'N/A'}`;
 
   // Client discount display
   const discEl = document.getElementById('metaDispDiscount');
@@ -1959,31 +1842,18 @@ window.saveColumnOptionsFromModal = async function() {
 // ── Calculations ──────────────────────────────────────────────────────────────
 function recalcAll() {
   const { multiplier } = getParams();
-  const curSymbol  = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
-  const taxRate    = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
-  const isZar      = (curSymbol === 'ZAR');
-  const exstock    = isExstock();
+  const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  const taxRate   = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
+  const isZar     = (curSymbol === 'ZAR');
 
-  // Set both data attributes — CSS uses these for all column/card hiding
   document.body.setAttribute('data-currency', curSymbol);
-  document.body.setAttribute('data-terms', currentQuoteMeta?.termsType || 'Exworks');
-
   const rates = ExchangeService.getRates();
 
   const zarToEurGroup = document.getElementById('zarToEurGroup');
-  if (zarToEurGroup) zarToEurGroup.style.display = isZar && !exstock ? 'flex' : 'none';
+  if (zarToEurGroup) zarToEurGroup.style.display = isZar ? 'flex' : 'none';
 
-  // Column header for the Unit Buy/Price column
   const ubpHeader = document.querySelector('thead th.col-ubp');
-  if (ubpHeader) {
-    if (exstock)    ubpHeader.textContent = 'Unit Price (MUR)';
-    else if (isZar) ubpHeader.textContent = 'Unit Buy Price (ZAR)';
-    else            ubpHeader.textContent = 'Unit Buy Price (EUR)';
-  }
-
-  // Discount column header label
-  const discHeader = document.querySelector('thead th.col-discount');
-  if (discHeader) discHeader.textContent = 'Disc. %';
+  if (ubpHeader) ubpHeader.textContent = isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)';
 
   document.querySelectorAll('.m-adj-price-label').forEach(el => { el.textContent = 'Adj. Price (EUR)'; });
 
@@ -2005,8 +1875,6 @@ function recalcAll() {
     const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR, discountPct } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     const visible = !q || row.ref.toLowerCase().includes(q) || row.name.toLowerCase().includes(q);
     if (visible) { subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR; }
-
-    // Calculated cells (hidden by CSS in Exstock mode but still updated)
     tr.querySelector('.cell-adj-price-zar').textContent = fmt(adjPriceZar);
     tr.querySelector('.cell-adj-price-eur').textContent = fmt(adjPriceEur);
     tr.querySelector('.cell-usp').textContent           = fmt(uspMUR);
@@ -2014,26 +1882,13 @@ function recalcAll() {
     const eurCell = tr.querySelector('.cell-total-eur'); if (eurCell) eurCell.textContent = fmt(totalEUR);
     const zarCell = tr.querySelector('.cell-total-zar'); if (zarCell) zarCell.textContent = fmt(totalZAR);
 
-    // ── Discount column: update the disc-display span ──────────────────────
-    // This shows the EFFECTIVE discount (resolved from row override or quote default)
-    // so the user always sees exactly what % is being applied to each row.
-    const discTd   = tr.querySelector('.cell-discount');
-    const discSpan = discTd ? discTd.querySelector('.disc-display') : null;
-    if (discTd && discSpan) {
+    // Style the discount cell to visually indicate inherited vs override
+    const discTd = tr.querySelector('.cell-discount');
+    if (discTd) {
       const hasOverride = row.discount !== null && row.discount !== undefined && row.discount !== '';
       discTd.classList.remove('disc-inherited', 'disc-override');
       if (discountPct > 0) {
         discTd.classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
-        discSpan.textContent = fmt(discountPct, 1) + '%';
-        discSpan.className   = 'disc-display ' + (hasOverride ? 'is-override' : 'is-inherited');
-      } else {
-        discSpan.textContent = '';
-        discSpan.className   = 'disc-display';
-      }
-      // Update placeholder on the input so it always reflects the current quote default
-      const discInput = discTd.querySelector('input[data-field="discount"]');
-      if (discInput && document.activeElement !== discInput) {
-        discInput.placeholder = resolveDiscountPlaceholder();
       }
     }
   });
@@ -2047,27 +1902,14 @@ function recalcAll() {
     card.querySelector('.m-total').textContent         = fmt(totalMUR);
     const eurSpan = card.querySelector('.m-total-eur'); if (eurSpan) eurSpan.textContent = fmt(totalEUR);
     const zarSpan = card.querySelector('.m-total-zar'); if (zarSpan) zarSpan.textContent = fmt(totalZAR);
-
-    // Update mobile discount display
+    // Style the mobile discount field wrapper
     const discWrap = card.querySelector('.m-disc-wrap');
     if (discWrap) {
       const hasOverride = row.discount !== null && row.discount !== undefined && row.discount !== '';
       discWrap.classList.remove('disc-inherited', 'disc-override');
-      const discEffective = discWrap.querySelector('.m-disc-effective');
-      if (discountPct > 0) {
-        discWrap.classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
-        if (discEffective) {
-          discEffective.textContent = `→ ${fmt(discountPct, 1)}%`;
-          discEffective.style.color = hasOverride ? '#d97706' : 'var(--muted)';
-        }
-      } else {
-        if (discEffective) discEffective.textContent = '';
-      }
-      // Sync placeholder on mobile input too
-      const mDiscInput = discWrap.querySelector('input[data-field="discount"]');
-      if (mDiscInput && document.activeElement !== mDiscInput) {
-        mDiscInput.placeholder = resolveDiscountPlaceholder();
-      }
+      if (discountPct > 0) discWrap.classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
+      const discLabel = discWrap.querySelector('.m-disc-effective');
+      if (discLabel) discLabel.textContent = discountPct > 0 ? `Effective: ${fmt(discountPct,1)}%` : '';
     }
   });
 
@@ -2187,7 +2029,6 @@ window.initiateNewQuoteWorkspace = function() {
   const ubpHeader = document.querySelector('thead th.col-ubp');
   if (ubpHeader) ubpHeader.textContent = 'Unit Buy Price (EUR)';
   document.body.setAttribute('data-currency', 'MUR');
-  document.body.setAttribute('data-terms', 'Exworks');
   document.querySelectorAll('.m-adj-price-label').forEach(el => { el.textContent = 'Adj. Price (EUR)'; });
 
   onMultiplierTypeChange(false);
@@ -2245,7 +2086,6 @@ function appendDesktopRow(row) {
         placeholder="${resolveDiscountPlaceholder()}"
         title="Blank = inherit quote default. 0 = no discount for this row."
         oninput="updateRowField('${row.id}','discount', this.value === '' ? null : this.value)" />
-      <span class="disc-display"></span>
     </td>
     <td class="td-calc calc-cell col-adj-zar cell-adj-price-zar">0.00</td>
     <td class="td-calc calc-cell col-adj-eur cell-adj-price-eur">0.00</td>
@@ -2583,20 +2423,17 @@ window.exportCSV = function() {
   if (!rows.length) { showToast('No items to export', 'error'); return; }
   const { multiplier } = getParams();
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
-  const exstock   = isExstock();
-  const isEur     = !exstock && (curSymbol === 'EUR' || curSymbol === 'ZAR');
-  const isZar     = !exstock && (curSymbol === 'ZAR');
+  const isEur = (curSymbol === 'EUR' || curSymbol === 'ZAR');
+  const isZar = (curSymbol === 'ZAR');
 
-  const headers = exstock
-    ? ['Part Reference', 'Part Name', 'Qty', 'Unit Price (MUR)', 'Disc. %', 'Total (MUR)']
-    : [
-        'Date Added', 'Part Reference', 'Part Name', 'Qty',
-        isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)',
-        'Disc. %',
-        isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)'
-      ];
-  if (!exstock && isZar) headers.push('Adj. Price (EUR)');
-  if (!exstock) headers.push('Unit Sell Price (MUR)', 'Total (MUR)');
+  const headers = [
+    'Date Added', 'Part Reference', 'Part Name', 'Qty',
+    isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)',
+    'Disc. %',
+    isZar ? 'Adj. Price (ZAR)' : 'Adj. Price (EUR)'
+  ];
+  if (isZar) headers.push('Adj. Price (EUR)');
+  headers.push('Unit Sell Price (MUR)', 'Total (MUR)');
   if (isEur) headers.push('Total (EUR)');
   if (isZar) headers.push('Total (ZAR)');
 
@@ -2607,31 +2444,18 @@ window.exportCSV = function() {
   rows.forEach(row => {
     const { adjPriceZar, adjPriceEur, uspMUR, totalMUR, totalEUR, totalZAR, discountPct } = ExchangeService.calculateRow(row, multiplier, rates, curSymbol);
     subtotalMUR += totalMUR; subtotalEUR += totalEUR; subtotalZAR += totalZAR;
-
-    let line;
-    if (exstock) {
-      line = [
-        `"${row.ref.replace(/"/g,'""')}"`,
-        `"${row.name.replace(/"/g,'""')}"`,
-        row.qty,
-        row.ubp,
-        discountPct > 0 ? discountPct.toFixed(1) + '%' : '—',
-        totalMUR.toFixed(2)
-      ];
-    } else {
-      line = [
-        `"${(row.date || '').replace(/"/g,'""')}"`,
-        `"${row.ref.replace(/"/g,'""')}"`,
-        `"${row.name.replace(/"/g,'""')}"`,
-        row.qty, row.ubp,
-        discountPct > 0 ? discountPct.toFixed(1) + '%' : '—',
-        adjPriceZar.toFixed(2)
-      ];
-      if (isZar) line.push(adjPriceEur.toFixed(2));
-      line.push(uspMUR.toFixed(2), totalMUR.toFixed(2));
-      if (isEur) line.push(totalEUR.toFixed(2));
-      if (isZar) line.push(totalZAR.toFixed(2));
-    }
+    const line = [
+      `"${(row.date || '').replace(/"/g,'""')}"`,
+      `"${row.ref.replace(/"/g,'""')}"`,
+      `"${row.name.replace(/"/g,'""')}"`,
+      row.qty, row.ubp,
+      discountPct > 0 ? discountPct.toFixed(1) + '%' : '—',
+      adjPriceZar.toFixed(2)
+    ];
+    if (isZar) line.push(adjPriceEur.toFixed(2));
+    line.push(uspMUR.toFixed(2), totalMUR.toFixed(2));
+    if (isEur) line.push(totalEUR.toFixed(2));
+    if (isZar) line.push(totalZAR.toFixed(2));
     csvRows.push(line.join(','));
   });
 
@@ -2731,28 +2555,31 @@ window.exportPDF = function() {
   const showEurSummary    = document.getElementById('pdfOpt_eurSummary').checked;
   const showZarSummary    = document.getElementById('pdfOpt_zarSummary').checked;
 
-  const rates    = ExchangeService.getRates();
-  const exstock  = isExstock();
+  const rates = ExchangeService.getRates();
   let startY = 43;
-  if (showPricingRules && !exstock) {
+  if (showPricingRules) {
     doc.setFontSize(8); doc.setFont(undefined,'italic');
     doc.text(`Pricing Rules — Multiplier: ${multiplier}  Adjuster: ${rates.adjusterPercent}%  Rate: ${fmt(rates.eurToMur,2)}  Adjusted Rate: ${fmt(rates.adjRate_EUR_MUR,3)} MUR/EUR`, 14, 44);
     startY = 47;
   }
 
   const headRow = [], colIndices = [];
-  if (!exstock && showDateAdded)    { headRow.push('Date Added');  colIndices.push('date'); }
-  if (!exstock)                     { headRow.push('Part Ref');    colIndices.push('ref');  }
-  if (!exstock)                     { headRow.push('Part Name');   colIndices.push('name'); }
-  headRow.push('Qty');              colIndices.push('qty');
-  if (showUnitBuyPrice)             { headRow.push(exstock ? 'Unit Price (MUR)' : isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)'); colIndices.push('ubp'); }
-  if (showDiscount)                 { headRow.push('Disc. %');     colIndices.push('discount'); }
-  if (!exstock && isZar && showAdjPriceZar) { headRow.push('Adj. Price (ZAR)'); colIndices.push('adjPriceZar'); }
-  if (!exstock && showAdjPriceEur)  { headRow.push('Adj. Price (EUR)'); colIndices.push('adjPriceEur'); }
-  if (!exstock && showUnitSellPrice){ headRow.push('Unit Sell Price (MUR)'); colIndices.push('uspMUR'); }
-  if (showTotalMur)                 { headRow.push('Total (MUR)'); colIndices.push('totalMUR'); }
-  if (!exstock && showTotalEur)     { headRow.push('Total (EUR)'); colIndices.push('totalEUR'); }
-  if (!exstock && showTotalZar)     { headRow.push('Total (ZAR)'); colIndices.push('totalZAR'); }
+  if (showDateAdded)     { headRow.push('Date Added');                                               colIndices.push('date'); }
+  headRow.push('Part Ref');  colIndices.push('ref');
+  headRow.push('Part Name'); colIndices.push('name');
+  headRow.push('Qty');       colIndices.push('qty');
+  if (showUnitBuyPrice)  { headRow.push(isZar ? 'Unit Buy Price (ZAR)' : 'Unit Buy Price (EUR)');   colIndices.push('ubp'); }
+  if (showDiscount)      { headRow.push('Disc. %'); colIndices.push('discount'); }
+  if (isZar) {
+    if (showAdjPriceZar) { headRow.push('Adj. Price (ZAR)'); colIndices.push('adjPriceZar'); }
+    if (showAdjPriceEur) { headRow.push('Adj. Price (EUR)'); colIndices.push('adjPriceEur'); }
+  } else {
+    if (showAdjPriceEur) { headRow.push('Adj. Price (EUR)'); colIndices.push('adjPriceEur'); }
+  }
+  if (showUnitSellPrice) { headRow.push('Unit Sell Price (MUR)'); colIndices.push('uspMUR'); }
+  if (showTotalMur)      { headRow.push('Total (MUR)');           colIndices.push('totalMUR'); }
+  if (showTotalEur)      { headRow.push('Total (EUR)');           colIndices.push('totalEUR'); }
+  if (showTotalZar)      { headRow.push('Total (ZAR)');           colIndices.push('totalZAR'); }
 
   let subtotalMUR = 0, subtotalEUR = 0, subtotalZAR = 0;
   const body = rows.map(row => {
@@ -2803,7 +2630,7 @@ window.exportPDF = function() {
     doc.text(`Grand Total: MUR ${fmt(subtotalMUR+taxMUR)}`, currentX, finalY+22, { align:'right' });
     currentX -= 55;
   }
-  if (!exstock && showEurSummary) {
+  if (showEurSummary) {
     const taxEUR = subtotalEUR * (taxRate / 100);
     doc.setFontSize(8.5); doc.setFont(undefined,'bold');
     doc.text('EUR SUMMARY', currentX, finalY+6, { align:'right' });
@@ -2814,7 +2641,7 @@ window.exportPDF = function() {
     doc.text(`Grand Total: EUR ${fmt(subtotalEUR+taxEUR)}`, currentX, finalY+22, { align:'right' });
     currentX -= 55;
   }
-  if (!exstock && showZarSummary) {
+  if (showZarSummary) {
     const taxZAR = subtotalZAR * (taxRate / 100);
     doc.setFontSize(8.5); doc.setFont(undefined,'bold');
     doc.text('ZAR SUMMARY', currentX, finalY+6, { align:'right' });
