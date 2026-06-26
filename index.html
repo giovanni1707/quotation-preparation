@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -560,10 +559,10 @@
         <div class="input-group">
           <label class="field-label" for="multiplierType">Price Multiplier</label>
           <select class="field-input" id="multiplierType" onchange="onMultiplierTypeChange()">
-            <option value="2.1">Standard (2.1)</option>
-            <option value="2.15">SMIA (2.15)</option>
-            <option value="1.3">Third Party (1.3)</option>
-            <option value="custom">Custom</option>
+            <option value="2.1" id="optMultStandard">Standard (2.1)</option>
+            <option value="2.15" id="optMultSmia">SMIA (2.15)</option>
+            <option value="1.3" id="optMultThirdParty">Third Party (1.3)</option>
+            <option value="custom" id="optMultCustom">Custom</option>
           </select>
         </div>
         <div class="input-group" id="customMultiplierGroup" style="display:none">
@@ -763,12 +762,16 @@
 
       <div class="input-group">
         <label class="field-label" style="font-weight:700">Tax <span style="color:var(--red)">*</span></label>
-        <select class="field-input" id="infoTax" required>
-          <option value="15" selected>15% VAT</option>
-          <option value="10">10% Tax</option>
-          <option value="5">5% VAT</option>
-          <option value="0">No Tax (0%)</option>
+        <select class="field-input" id="infoTax" onchange="onTaxOptionChange()" required>
+          <option value="0" id="optTaxNo">No Tax</option>
+          <option value="15" id="optTax15" selected>15%</option>
+          <option value="custom" id="optTaxCustom">Custom</option>
         </select>
+      </div>
+
+      <div class="input-group" id="infoCustomTaxGroup" style="display:none; grid-column: span 2;">
+        <label class="field-label" style="font-weight:700">Custom Tax (%) <span style="color:var(--red)">*</span></label>
+        <input class="field-input" type="number" id="infoTaxCustom" step="0.1" min="0" max="100" placeholder="e.g. 10" />
       </div>
 
       <div class="input-group">
@@ -1347,6 +1350,30 @@ window.addEventListener('DOMContentLoaded', async () => {
     applyTheme(currentTheme);
     populateProviderDropdown();
     onMultiplierTypeChange(false);
+
+    // Bind real-time change listeners to guarantee immediate recalculation
+    const adjusterEl = document.getElementById('adjuster');
+    const rateEl = document.getElementById('rate');
+    const zarToEurEl = document.getElementById('zarToEur');
+    const multiplierCustomEl = document.getElementById('multiplierCustom');
+
+    if (adjusterEl) {
+      adjusterEl.addEventListener('input', recalcAll);
+      adjusterEl.addEventListener('change', recalcAll);
+    }
+    if (rateEl) {
+      rateEl.addEventListener('input', recalcAll);
+      rateEl.addEventListener('change', recalcAll);
+    }
+    if (zarToEurEl) {
+      zarToEurEl.addEventListener('input', recalcAll);
+      zarToEurEl.addEventListener('change', recalcAll);
+    }
+    if (multiplierCustomEl) {
+      multiplierCustomEl.addEventListener('input', recalcAll);
+      multiplierCustomEl.addEventListener('change', recalcAll);
+    }
+
     renderAll();
     toggleUIState();
     recalcAll();
@@ -1493,11 +1520,63 @@ window.onExpiryOptionChange = function() {
   }
 };
 
+// ── Tax Option Change handler ──
+window.onTaxOptionChange = function() {
+  const taxVal = document.getElementById('infoTax').value;
+  const customTaxGroup = document.getElementById('infoCustomTaxGroup');
+  if (taxVal === 'custom') {
+    customTaxGroup.style.display = 'block';
+    const customInput = document.getElementById('infoTaxCustom');
+    if (!customInput.value) {
+      customInput.value = '10'; // default custom placeholder fallback
+    }
+  } else {
+    customTaxGroup.style.display = 'none';
+  }
+};
+
 window.onTermsTypeChange = function() {
   const termsType = document.getElementById('infoTermsType').value;
   const currencySelect = document.getElementById('infoCurrency');
+  const taxSelect = document.getElementById('infoTax');
+  const optTaxNo = document.getElementById('optTaxNo');
+  const optTax15 = document.getElementById('optTax15');
+  const optTaxCustom = document.getElementById('optTaxCustom');
 
-  if (termsType === 'Exstock') {
+  // Re-enable and reset standard display behavior for all tax options by default
+  if (optTaxNo) {
+    optTaxNo.disabled = false;
+    optTaxNo.style.display = '';
+  }
+  if (optTax15) {
+    optTax15.disabled = false;
+    optTax15.style.display = '';
+  }
+  if (optTaxCustom) {
+    optTaxCustom.disabled = false;
+    optTaxCustom.style.display = '';
+  }
+
+  // Restore currencies by default
+  Array.from(currencySelect.options).forEach(opt => {
+    opt.disabled = false;
+    opt.style.display = '';
+  });
+
+  if (termsType === 'Exworks') {
+    // 1. Automatic Tax Selection to "No Tax"
+    taxSelect.value = '0';
+
+    // 2. Restricted Tax Options: Hide 15% and Custom options
+    if (optTax15) {
+      optTax15.disabled = true;
+      optTax15.style.display = 'none';
+    }
+    if (optTaxCustom) {
+      optTaxCustom.disabled = true;
+      optTaxCustom.style.display = 'none';
+    }
+  } else if (termsType === 'Exstock') {
     currencySelect.value = 'MUR';
     Array.from(currencySelect.options).forEach(opt => {
       if (opt.value !== 'MUR') {
@@ -1505,12 +1584,20 @@ window.onTermsTypeChange = function() {
         opt.style.display = 'none';
       }
     });
-  } else {
-    Array.from(currencySelect.options).forEach(opt => {
-      opt.disabled = false;
-      opt.style.display = '';
-    });
+
+    // Enforce tax of 15% minimum if "No Tax" was selected under Exstock terms
+    if (taxSelect.value === '0') {
+      taxSelect.value = '15';
+    }
+
+    // Hide No Tax option during Exstock selection
+    if (optTaxNo) {
+      optTaxNo.disabled = true;
+      optTaxNo.style.display = 'none';
+    }
   }
+
+  onTaxOptionChange();
 };
 
 // ── Quote Info Modal ──────────────────────────────────────────────────────────
@@ -1525,7 +1612,10 @@ window.openQuoteInfoModal = function(isCreateNew = false) {
     document.getElementById('infoExpiryOption').value = '30';
     document.getElementById('infoExpiryDateCustom').value = '';
     document.getElementById('infoCurrency').value     = 'MUR';
+    
     document.getElementById('infoTax').value          = '15';
+    document.getElementById('infoTaxCustom').value    = '';
+
     document.getElementById('infoTermsType').value    = 'Exworks';
     document.getElementById('infoClientDiscount').value = '';
     document.getElementById('infoProvider').value     = 'bavarian';
@@ -1537,7 +1627,16 @@ window.openQuoteInfoModal = function(isCreateNew = false) {
     document.getElementById('infoExpiryOption').value = currentQuoteMeta.expiryOption || '30';
     document.getElementById('infoExpiryDateCustom').value = currentQuoteMeta.expiryDate || '';
     document.getElementById('infoCurrency').value     = currentQuoteMeta.currency || 'MUR';
-    document.getElementById('infoTax').value          = currentQuoteMeta.tax || '15';
+    
+    const savedTax = currentQuoteMeta.tax != null ? String(currentQuoteMeta.tax) : '15';
+    if (savedTax === '0' || savedTax === '15') {
+      document.getElementById('infoTax').value = savedTax;
+      document.getElementById('infoTaxCustom').value = '';
+    } else {
+      document.getElementById('infoTax').value = 'custom';
+      document.getElementById('infoTaxCustom').value = savedTax;
+    }
+
     document.getElementById('infoTermsType').value    = currentQuoteMeta.termsType || 'Exworks';
     document.getElementById('infoClientDiscount').value = currentQuoteMeta.clientDiscount != null ? currentQuoteMeta.clientDiscount : '';
     document.getElementById('infoProvider').value     = currentQuoteMeta.providerId || '';
@@ -1567,7 +1666,24 @@ window.saveQuoteInfo = async function() {
   const issueDate   = document.getElementById('infoIssueDate').value;
   const expiryOption = document.getElementById('infoExpiryOption').value;
   const currency    = document.getElementById('infoCurrency').value;
-  const tax         = document.getElementById('infoTax').value;
+  
+  const taxOption   = document.getElementById('infoTax').value;
+  let tax = 15;
+  if (taxOption === 'custom') {
+    const customTaxVal = document.getElementById('infoTaxCustom').value.trim();
+    if (customTaxVal === '') {
+      showToast('Please enter a custom tax percentage', 'error');
+      return;
+    }
+    tax = parseFloat(customTaxVal);
+    if (isNaN(tax) || tax < 0 || tax > 100) {
+      showToast('Please enter a valid tax percentage between 0 and 100', 'error');
+      return;
+    }
+  } else {
+    tax = parseFloat(taxOption);
+  }
+
   const termsType   = document.getElementById('infoTermsType').value;
   const providerId  = document.getElementById('infoProvider').value;
   const clientDiscountRaw = document.getElementById('infoClientDiscount').value.trim();
@@ -1581,18 +1697,33 @@ window.saveQuoteInfo = async function() {
     expiryDate = calculateExpiryDate(issueDate, expiryOption, '');
   }
 
-  if (!client || !quoteNo || !ref || !issueDate || !expiryOption || !currency || !tax || !termsType) {
+  if (!client || !quoteNo || !ref || !issueDate || !expiryOption || !currency || !termsType) {
     showToast('Please fill out all required fields marked with *', 'error');
     return;
   }
 
+  const previousCurrency = currentQuoteMeta ? currentQuoteMeta.currency : null;
   currentQuoteMeta = { client, issueDate, expiryOption, expiryDate, quoteNo, reference: ref, currency, tax, termsType, providerId, clientDiscount };
+
+  // Set default multiplier configuration if currency transitioned to ZAR
+  if (currency === 'ZAR' && previousCurrency !== 'ZAR') {
+    const multSelect = document.getElementById('multiplierType');
+    if (multSelect) {
+      multSelect.value = '1.3';
+      onMultiplierTypeChange(false);
+    }
+  }
 
   if (isCreatingNewQuote) {
     rows = [];
     loadedName = '';
-    document.getElementById('multiplierType').value   = '2.1';
-    document.getElementById('multiplierCustom').value = '2.1';
+    if (currency === 'ZAR') {
+      document.getElementById('multiplierType').value   = '1.3';
+      document.getElementById('multiplierCustom').value = '1.3';
+    } else {
+      document.getElementById('multiplierType').value   = '2.1';
+      document.getElementById('multiplierCustom').value = '2.1';
+    }
     onMultiplierTypeChange(false);
     document.getElementById('searchInput').value = '';
     renderAll();
@@ -1770,10 +1901,37 @@ window.saveColumnOptionsFromModal = async function() {
   showToast('Column visibilities updated');
 };
 
+// ── Multiplier Option Synchronization ─────────────────────────────────────────
+function syncMultiplierDropdown(currency) {
+  const select = document.getElementById('multiplierType');
+  if (!select) return;
+
+  const optStandard = document.getElementById('optMultStandard');
+  const optSmia     = document.getElementById('optMultSmia');
+
+  if (currency === 'ZAR') {
+    if (optStandard) { optStandard.style.display = 'none'; optStandard.disabled = true; }
+    if (optSmia)     { optSmia.style.display = 'none';     optSmia.disabled = true; }
+
+    // Enforce default rule of 1.3 if currently on standard or SMIA
+    if (select.value === '2.1' || select.value === '2.15') {
+      select.value = '1.3';
+      onMultiplierTypeChange(false);
+    }
+  } else {
+    if (optStandard) { optStandard.style.display = ''; optStandard.disabled = false; }
+    if (optSmia)     { optSmia.style.display = '';     optSmia.disabled = false; }
+  }
+}
+
 // ── Calculations ──────────────────────────────────────────────────────────────
 function recalcAll() {
-  const { multiplier } = getParams();
   const curSymbol = currentQuoteMeta ? currentQuoteMeta.currency : 'MUR';
+  
+  // Sync multiplier options to ensure validation against active currency
+  syncMultiplierDropdown(curSymbol);
+
+  const { multiplier } = getParams();
   const taxRate   = currentQuoteMeta ? parseFloat(currentQuoteMeta.tax) : 15;
   const isZar     = (curSymbol === 'ZAR');
   const isExstock = currentQuoteMeta && currentQuoteMeta.termsType === 'Exstock';
@@ -1856,8 +2014,8 @@ function recalcAll() {
     if (discWrap) {
       const hasOverride = row.discount !== null && row.discount !== undefined && row.discount !== '';
       discWrap.classList.remove('disc-inherited', 'disc-override');
-      if (discountPct > 0) discWrap.classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
-      const discLabel = discWrap.querySelector('.m-disc-effective');
+      if (discountPct > 0) card.querySelector('.m-disc-wrap').classList.add(hasOverride ? 'disc-override' : 'disc-inherited');
+      const discLabel = card.querySelector('.m-disc-effective');
       if (discLabel) discLabel.textContent = discountPct > 0 ? `Effective: ${fmt(discountPct,1)}%` : '';
     }
   });
@@ -2242,7 +2400,7 @@ window.loadQuote = function(name) {
       quoteNo: name,
       reference: 'LEGACY-REF',
       currency: 'MUR',
-      tax: '15',
+      tax: 15,
       termsType: 'Exworks',
       providerId: 'bavarian'
     };
